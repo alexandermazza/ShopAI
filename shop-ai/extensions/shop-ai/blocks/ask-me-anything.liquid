@@ -1,0 +1,152 @@
+{% comment %}
+  The ask-me-anything search component using React
+{% endcomment %}
+
+{%- liquid
+  # --- Prepare Product Context ---
+  # Collect all relevant product information into a single string or JSON object
+  # Example: Basic details. Enhance this with metafields, variant info, etc.
+  assign product_json_string = product | json
+  assign context_string = ""
+  assign context_string = context_string | append: "Title: " | append: product.title | append: "\n"
+  assign context_string = context_string | append: "Description: " | append: product.description | strip_html | append: "\n"
+  assign context_string = context_string | append: "Vendor: " | append: product.vendor | append: "\n"
+  assign context_string = context_string | append: "Type: " | append: product.type | append: "\n"
+  # Add more details like price, variants, metafields as needed
+
+  # TODO: Consider adding image alt text, review content if available
+-%}
+
+<div id="ask-me-anything" class="ask-me-anything-container" data-product-context="{{ context_string | escape }}">
+  <div class="search-wrapper">
+    <span class="search-icon">✦</span>
+    <input
+      type="text"
+      placeholder="{{ block.settings.placeholder | default: 'Ask me anything' }}"
+      class="search-input"
+      aria-label="{{ block.settings.placeholder | default: 'Ask me anything' }} search"
+    >
+  </div>
+  <div class="response-area" aria-live="polite" style="margin-top: 1rem; padding: 1rem; border-radius: 8px; background-color: #f9fafb; min-height: 50px; display: none;">
+    <!-- AI response will be displayed here -->
+  </div>
+</div>
+
+<script>
+  // Pass product context to JS (Alternative: use data attribute as shown above)
+  // const productContextForJs = {{ product_json_string }};
+</script>
+
+<style>
+/* Define the gradient */
+:root {
+  --ai-gradient: linear-gradient(90deg, #007AFF, #AF52DE, #FF2D55, #FF9500);
+  --input-height: 4.5rem; /* Define height as a variable */
+  --default-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Define shadow */
+}
+
+.ask-me-anything-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 4rem 1rem;
+}
+
+.search-wrapper {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 9999px;
+  background: var(--ai-gradient);
+  box-shadow: var(--default-shadow); /* Use variable */
+  transition: box-shadow 0.8s ease;
+}
+
+.search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 1rem;
+  margin-right: 0.75rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  background: var(--ai-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  border: none; /* Ensure no border */
+  outline: none; /* Ensure no outline */
+  box-shadow: none; /* Ensure no shadow on input itself */
+  font-size: 1.8rem;
+  background: #fff; /* Ensure background is white */
+  color: #374151;
+  padding: 1rem 1rem 1rem 2rem;
+  border-radius: 9999px;
+  height: var(--input-height); /* Use variable for height */
+  box-sizing: border-box;
+  line-height: normal;
+}
+
+.search-input::placeholder {
+  font-size: 1.8rem;
+  background: var(--ai-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0.8;
+  line-height: var(--input-height);
+  display: flex;
+  align-items: center;
+}
+
+/* Explicitly force NO visual change on focus */
+.search-input:focus {
+  outline: none; /* Double ensure */
+  border: none; /* Double ensure */
+  box-shadow: none; /* Double ensure */
+  background: #fff; /* Double ensure */
+}
+
+/* Ensure wrapper style is IDENTICAL on input focus */
+.search-input:focus + .search-wrapper {
+   background: var(--ai-gradient); /* Keep gradient */
+   box-shadow: var(--default-shadow); /* Keep exact default shadow */
+}
+
+.response-area {
+  /* Basic styling for the response area */
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.response-area.loading {
+  color: #6b7280;
+  font-style: italic;
+}
+.response-area.error {
+  color: #dc2626; /* Red color for errors */
+  font-weight: bold;
+}
+</style>
+
+{% schema %}
+{
+  "name": "Ask Me Anything",
+  "target": "section",
+  "stylesheet": "ask-me-anything.css",
+  "javascript": "ask-me-anything.js",
+  "settings": [
+    {
+      "type": "text",
+      "id": "placeholder",
+      "label": "Search Placeholder",
+      "default": "Ask me anything"
+    }
+  ]
+}
+{% endschema %} 
