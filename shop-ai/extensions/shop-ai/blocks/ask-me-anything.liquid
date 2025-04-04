@@ -19,15 +19,20 @@
 
 <div id="ask-me-anything" class="ask-me-anything-container" data-product-context="{{ context_string | escape }}">
   <div class="search-wrapper">
-    <span class="search-icon">✦</span>
+    <span class="search-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path>
+      </svg>
+    </span>
     <input
       type="text"
       placeholder="{{ block.settings.placeholder | default: 'Ask me anything' }}"
       class="search-input"
       aria-label="{{ block.settings.placeholder | default: 'Ask me anything' }} search"
+      maxlength="300"
     >
   </div>
-  <div class="response-area" aria-live="polite" style="margin-top: 1rem; padding: 1rem; border-radius: 8px; background-color: #f9fafb; min-height: 50px; display: none;">
+  <div class="response-area" aria-live="polite">
     <!-- AI response will be displayed here -->
   </div>
 </div>
@@ -39,106 +44,157 @@
 
 <style>
 /* Define the gradient */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 :root {
   --ai-gradient: linear-gradient(90deg, #007AFF, #AF52DE, #FF2D55, #FF9500);
-  --input-height: 4.5rem; /* Define height as a variable */
-  --default-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Define shadow */
+  --input-height: 4.5rem;
+  --default-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+  --input-font-size: 1.6rem;
+  --response-font-size: 1.5rem;
+  --text-color: #374151;
+  --placeholder-color: #9ca3af;
+  --icon-color: #ffffff;
+  --response-bg: rgba(255, 255, 255, 0.65); /* Semi-transparent white for glassy effect */
+  --response-border-color: rgba(255, 255, 255, 0.4); /* Lighter border for glassy effect */
+  --border-color: #e5e7eb;
+  --loading-gradient: linear-gradient(90deg, #ccc 25%, #eee 50%, #ccc 75%);
 }
 
 .ask-me-anything-container {
   max-width: 800px;
   margin: 2rem auto;
-  padding: 4rem 1rem;
+  padding: 3rem 1rem;
 }
 
 .search-wrapper {
   display: flex;
   align-items: center;
-  padding: 2px;
+  padding: 4px; /* Increased padding for thicker border feel */
   border-radius: 9999px;
   background: var(--ai-gradient);
-  box-shadow: var(--default-shadow); /* Use variable */
-  transition: box-shadow 0.8s ease;
+  box-shadow: var(--default-shadow);
+  transition: box-shadow 0.3s ease;
 }
 
 .search-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 1rem;
-  margin-right: 0.75rem;
-  font-size: 1.5rem;
-  line-height: 1;
-  background: var(--ai-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  margin-left: 1.1rem; /* Adjusted */
+  margin-right: 0.7rem; /* Adjusted */
+  color: var(--icon-color);
   flex-shrink: 0;
+  /* Removed gradient background/clip */
 }
 
 .search-input {
   flex: 1;
-  border: none; /* Ensure no border */
-  outline: none; /* Ensure no outline */
-  box-shadow: none; /* Ensure no shadow on input itself */
-  font-size: 1.8rem;
-  background: #fff; /* Ensure background is white */
-  color: #374151;
-  padding: 1rem 1rem 1rem 2rem;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  font-size: var(--input-font-size);
+  font-family: inherit;
+  background: #fff;
+  color: var(--text-color);
+  padding: 0.8rem 1.5rem 0.8rem 1.5rem; 
   border-radius: 9999px;
-  height: var(--input-height); /* Use variable for height */
+  height: var(--input-height);
   box-sizing: border-box;
   line-height: normal;
 }
 
 .search-input::placeholder {
-  font-size: 1.8rem;
-  background: var(--ai-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  opacity: 0.8;
-  line-height: var(--input-height);
+  font-size: var(--input-font-size);
+  color: var(--placeholder-color); /* Use standard color */
+  opacity: 1; /* Reset opacity */
+  /* Removed gradient background/clip */
   display: flex;
   align-items: center;
+  height: 100%;
 }
 
-/* Explicitly force NO visual change on focus */
+/* Clean focus state */
 .search-input:focus {
-  outline: none; /* Double ensure */
-  border: none; /* Double ensure */
-  box-shadow: none; /* Double ensure */
-  background: #fff; /* Double ensure */
+  outline: none;
+  border: none;
+  box-shadow: none;
+  background: #fff;
 }
 
-/* Ensure wrapper style is IDENTICAL on input focus */
+/* Keep wrapper identical */
 .search-input:focus + .search-wrapper {
-   background: var(--ai-gradient); /* Keep gradient */
-   box-shadow: var(--default-shadow); /* Keep exact default shadow */
+   background: var(--ai-gradient);
+   box-shadow: var(--default-shadow);
 }
 
 .response-area {
-  /* Basic styling for the response area */
-  border: 1px solid #e5e7eb;
-  color: #374151;
-  font-size: 0.95rem;
-  line-height: 1.5;
+  margin-top: 1.5rem;
+  padding: 1.2rem 1.5rem;
+  border-radius: 16px; /* Slightly more pronounced radius */
+  background-color: var(--response-bg);
+  border: 1px solid var(--response-border-color);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--response-font-size);
+  line-height: 1.6;
+  min-height: 60px;
+  display: none; /* Keep hidden initially */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+  backdrop-filter: blur(10px); /* Frosted glass effect */
+  -webkit-backdrop-filter: blur(10px); /* Safari support */
+  opacity: 0; /* Start hidden for animation */
+  transform: translate3d(0, 20px, 0); /* Start slightly lower for animation */
 }
+
+.response-area.visible {
+  display: block;
+  animation: fadeInUp 0.5s ease forwards; /* Apply fade-in animation */
+}
+
 .response-area.loading {
-  color: #6b7280;
+  color: #6b7280; /* Keep loading text color */
   font-style: italic;
+  font-size: calc(var(--response-font-size) * 0.95);
+  /* Shimmer effect */
+  background: var(--loading-gradient);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent; /* Make text transparent to show gradient */
+  animation: shimmer 2s linear infinite;
 }
+
 .response-area.error {
-  color: #dc2626; /* Red color for errors */
-  font-weight: bold;
+  color: #dc2626;
+  font-weight: 500;
+  font-size: calc(var(--response-font-size) * 0.95);
+  /* Remove shimmer if also loading class applied accidentally */
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: #dc2626;
+  animation: none;
 }
 </style>
-
 {% schema %}
 {
   "name": "Ask Me Anything",
   "target": "section",
-  "stylesheet": "ask-me-anything.css",
   "javascript": "ask-me-anything.js",
   "settings": [
     {

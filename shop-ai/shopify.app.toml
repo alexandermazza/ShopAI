@@ -3,7 +3,7 @@
 client_id = "2a2ba6e7ada972054aa4e30f4d530a0d"
 name = "ShopAI"
 handle = "shopai-25"
-application_url = "https://docs-buzz-movement-cl.trycloudflare.com"
+application_url = "https://marvel-correspondence-emission-spirituality.trycloudflare.com"
 embedded = true
 
 [build]
@@ -27,15 +27,15 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://docs-buzz-movement-cl.trycloudflare.com/auth/callback",
-  "https://docs-buzz-movement-cl.trycloudflare.com/auth/shopify/callback",
-  "https://docs-buzz-movement-cl.trycloudflare.com/api/auth/callback"
+  "https://marvel-correspondence-emission-spirituality.trycloudflare.com/auth/callback",
+  "https://marvel-correspondence-emission-spirituality.trycloudflare.com/auth/shopify/callback",
+  "https://marvel-correspondence-emission-spirituality.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://docs-buzz-movement-cl.trycloudflare.com/api"
+url = "https://marvel-correspondence-emission-spirituality.trycloudflare.com/api"
 subpath = "proxy"
 prefix = "apps"

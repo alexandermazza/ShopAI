@@ -50,8 +50,9 @@ const AskMeAnything = {
 
         // --- Show Loading State ---
         responseArea.textContent = 'Thinking...';
-        responseArea.style.display = 'block';
-        responseArea.className = 'response-area loading';
+        responseArea.classList.remove('error'); // Clear potential previous error state
+        responseArea.classList.add('loading');
+        responseArea.classList.add('visible'); // Add visible to trigger animation
         searchInput.disabled = true;
 
         // Use the App Proxy path
@@ -87,11 +88,15 @@ const AskMeAnything = {
                 console.error(`AskMeAnything: API Error (Status ${response.status}):`, response.statusText);
              }
              responseArea.textContent = `Error: ${errorMessage}`;
-             responseArea.className = 'response-area error';
+             responseArea.classList.remove('loading'); // Remove loading state
+             responseArea.classList.add('error');     // Add error state
+             responseArea.classList.add('visible');   // Ensure visible
            } else {
              console.log('AskMeAnything: API Success, displaying answer.');
              responseArea.textContent = result.answer;
-             responseArea.className = 'response-area';
+             responseArea.classList.remove('loading'); // Remove loading state
+             responseArea.classList.remove('error');   // Remove potential error state
+             responseArea.classList.add('visible');    // Ensure visible
            }
 
         } catch (error) {
@@ -103,7 +108,9 @@ const AskMeAnything = {
                console.error('AskMeAnything: Fetch Error:', error);
                responseArea.textContent = 'Error: Could not connect to the server.';
            }
-           responseArea.className = 'response-area error';
+           responseArea.classList.remove('loading'); // Remove loading state
+           responseArea.classList.add('error');     // Add error state
+           responseArea.classList.add('visible');   // Ensure visible
         } finally {
           console.log('AskMeAnything: Re-enabling input.');
           searchInput.disabled = false;
