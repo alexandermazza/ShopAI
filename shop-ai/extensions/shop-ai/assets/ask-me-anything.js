@@ -36,23 +36,17 @@ const AskMeAnything = {
     // Handle input changes
     searchInput.addEventListener('input', (e) => {
       const query = e.target.value;
-      // TODO: Implement search functionality
-      console.log('Search query:', query);
+      // TODO: Implement search functionality (maybe with debouncing if needed later)
     });
 
     // Handle form submission
     searchInput.addEventListener('keypress', async (e) => {
-      console.log(`AskMeAnything: keypress event detected - key: ${e.key}`);
-
       if (e.key === 'Enter') {
-        console.log('AskMeAnything: Enter key pressed!');
         e.preventDefault();
         const query = searchInput.value.trim();
         if (!query) {
-           console.log('AskMeAnything: Query is empty, ignoring Enter.');
            return;
         }
-        console.log(`AskMeAnything: Sending query "${query}"`);
 
         // --- Show Loading State ---
         responseArea.textContent = 'Thinking...';
@@ -60,10 +54,13 @@ const AskMeAnything = {
         responseArea.className = 'response-area loading';
         searchInput.disabled = true;
 
+        // Use the App Proxy path
+        const apiUrl = '/apps/proxy/resource-openai'; 
+        console.log(`AskMeAnything: Calling API via App Proxy: ${apiUrl}`); 
+
         try {
           // --- Call Backend API ---
-          console.log('AskMeAnything: Calling /resource-openai');
-          const response = await fetch('/resource-openai', {
+          const response = await fetch(apiUrl, { // <-- Use the App Proxy URL
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -73,14 +70,22 @@ const AskMeAnything = {
               productContext: productContext,
             }),
           });
-          console.log(`AskMeAnything: API response status: ${response.status}`);
 
           const result = await response.json();
 
           // --- Display Result or Error ---
            if (!response.ok || result.error) {
-             const errorMessage = result.error || `API Error: ${response.statusText}`;
-             console.error('AskMeAnything: API Error:', result);
+             // Attempt to get a more specific error from Shopify's proxy response if it's not JSON
+             let errorMessage = result.error || `API Error: ${response.statusText}`;
+             if (!response.ok && response.headers.get('content-type')?.includes('text/html')) {
+                // If Shopify returned an HTML error page via the proxy
+                errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
+                console.error("Received HTML error page from App Proxy.");
+             } else if (result.error) {
+                console.error('AskMeAnything: API Error (JSON):', result);
+             } else {
+                console.error(`AskMeAnything: API Error (Status ${response.status}):`, response.statusText);
+             }
              responseArea.textContent = `Error: ${errorMessage}`;
              responseArea.className = 'response-area error';
            } else {
@@ -90,9 +95,15 @@ const AskMeAnything = {
            }
 
         } catch (error) {
-          console.error('AskMeAnything: Fetch Error:', error);
-          responseArea.textContent = 'Error: Could not connect to the server.';
-          responseArea.className = 'response-area error';
+           // Handle JSON parsing errors specifically, often caused by non-JSON responses (like HTML 404s)
+           if (error instanceof SyntaxError) {
+               console.error('AskMeAnything: Fetch Error - Failed to parse JSON response:', error);
+               responseArea.textContent = 'Error: Received an invalid response from the server.';
+           } else {
+               console.error('AskMeAnything: Fetch Error:', error);
+               responseArea.textContent = 'Error: Could not connect to the server.';
+           }
+           responseArea.className = 'response-area error';
         } finally {
           console.log('AskMeAnything: Re-enabling input.');
           searchInput.disabled = false;
@@ -100,7 +111,6 @@ const AskMeAnything = {
         }
       }
     });
-    console.log('AskMeAnything: Keypress event listener added.');
   }
 };
 

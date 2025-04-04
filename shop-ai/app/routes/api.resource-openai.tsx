@@ -29,14 +29,8 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "OpenAI API key not configured" }, { status: 500 });
     }
 
-    // Simple test response for now, to verify routing works
-    return json({ 
-      answer: `This is a test response. You asked: "${question}" about a product with context length: ${productContext.length} characters.`
-    });
-    
-    /* We'll uncomment this code once routing works
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o-mini",
       messages: [{ 
         role: "user", 
         content: `
@@ -62,7 +56,6 @@ export async function action({ request }: ActionFunctionArgs) {
       "Sorry, I couldn't generate an answer.";
       
     return json({ answer });
-    */
   } catch (error) {
     console.error("Error in resource-openai route:", error);
     return json({ 
