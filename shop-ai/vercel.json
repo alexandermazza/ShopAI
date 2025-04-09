@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "buildCommand": "npm run setup && remix build",
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "remix",
+  "regions": ["iad1"],
+  "outputDirectory": "public"
+} 
