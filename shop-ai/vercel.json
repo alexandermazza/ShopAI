@@ -4,14 +4,8 @@
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "remix",
   "regions": ["iad1"],
-  "outputDirectory": "public",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/server.mjs" }
-  ],
-  "env": {
-    "NODE_ENV": "production",
-    "SKIP_BUILD_SCRIPT": "true"
-  },
+  "cleanUrls": true,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/(.*)",

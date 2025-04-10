@@ -1,7 +1,20 @@
 import { json } from "@remix-run/node";
 import prisma from "../db.server";
 
-export const loader = async () => {
+export const loader = async ({ request }) => {
+  // Security check - only allow in non-production or with debug key
+  const headers = Object.fromEntries(request.headers);
+  
+  if (
+    process.env.NODE_ENV === "production" && 
+    headers["x-debug-key"] !== process.env.DEBUG_SECRET
+  ) {
+    return json(
+      { error: "Not authorized for debug info in production" },
+      { status: 403 }
+    );
+  }
+
   let databaseStatus = "Unknown";
   let error = null;
   
@@ -33,6 +46,11 @@ export const loader = async () => {
       error: error,
     },
     environment: envInfo,
+    request: {
+      method: request.method,
+      url: request.url,
+      headers: headers
+    },
     headers: {
       'X-Frame-Options': 'SAMEORIGIN',
       'Content-Security-Policy': "frame-ancestors 'self' https://*.shopify.com https://*.myshopify.com https://admin.shopify.com"
@@ -47,4 +65,8 @@ export function headers() {
     "Access-Control-Allow-Methods": "GET",
     "Cache-Control": "no-store"
   };
+}
+
+export default function Debug() {
+  return null;
 } 
