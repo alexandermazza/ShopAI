@@ -8,13 +8,24 @@ import { authenticate } from "../shopify.server";
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+  try {
+    console.log("📝 App route loader: Authentication attempt started", { url: request.url });
+    await authenticate.admin(request);
+    console.log("✅ App route loader: Authentication successful");
+    
+    const apiKey = process.env.SHOPIFY_API_KEY || "";
+    console.log("📝 App route loader: API key available:", !!apiKey);
+    
+    return { apiKey };
+  } catch (error) {
+    console.error("❌ App route loader: Authentication error", error);
+    throw error;
+  }
 };
 
 export default function App() {
   const { apiKey } = useLoaderData();
+  console.log("📝 App component: Rendering with API key:", !!apiKey);
 
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>
@@ -31,9 +42,15 @@ export default function App() {
 
 // Shopify needs Remix to catch some thrown responses, so that their headers are included in the response.
 export function ErrorBoundary() {
+  console.error("❌ App route error boundary triggered");
   return boundary.error(useRouteError());
 }
 
 export const headers = (headersArgs) => {
-  return boundary.headers(headersArgs);
+  console.log("📝 App route headers function called");
+  return {
+    ...boundary.headers(headersArgs),
+    "X-Frame-Options": "SAMEORIGIN",
+    "Content-Security-Policy": "frame-ancestors 'self' https://*.shopify.com https://*.myshopify.com https://admin.shopify.com"
+  };
 };

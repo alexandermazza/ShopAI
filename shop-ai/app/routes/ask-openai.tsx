@@ -40,6 +40,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // Construct the prompt for OpenAI
     const prompt = `
       You are a helpful assistant for an online store.
+      You are allowed to infer, but you are not allowed to make up information.
       Answer the user's question based *only* on the following product information.
       If the answer cannot be found in the product information, say "I'm sorry, I don't have that information based on the product details."
 

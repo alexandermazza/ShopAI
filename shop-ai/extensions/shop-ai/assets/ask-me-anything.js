@@ -49,10 +49,10 @@ const AskMeAnything = {
         }
 
         // --- Show Loading State ---
-        responseArea.textContent = 'Thinking...';
-        responseArea.classList.remove('error'); // Clear potential previous error state
-        responseArea.classList.add('loading');
-        responseArea.classList.add('visible'); // Add visible to trigger animation
+        // responseArea.textContent = 'Thinking...';
+        // responseArea.classList.remove('error');
+        // responseArea.classList.add('loading');
+        // responseArea.classList.add('visible'); 
         searchInput.disabled = true;
 
         // Use the App Proxy path
@@ -88,15 +88,15 @@ const AskMeAnything = {
                 console.error(`AskMeAnything: API Error (Status ${response.status}):`, response.statusText);
              }
              responseArea.textContent = `Error: ${errorMessage}`;
-             responseArea.classList.remove('loading'); // Remove loading state
-             responseArea.classList.add('error');     // Add error state
-             responseArea.classList.add('visible');   // Ensure visible
+             responseArea.classList.remove('loading'); // Still remove just in case
+             responseArea.classList.add('error');
+             responseArea.classList.add('visible'); // Add visible here
            } else {
              console.log('AskMeAnything: API Success, displaying answer.');
              responseArea.textContent = result.answer;
-             responseArea.classList.remove('loading'); // Remove loading state
-             responseArea.classList.remove('error');   // Remove potential error state
-             responseArea.classList.add('visible');    // Ensure visible
+             responseArea.classList.remove('loading'); // Still remove just in case
+             responseArea.classList.remove('error');
+             responseArea.classList.add('visible'); // Add visible here
            }
 
         } catch (error) {
@@ -108,9 +108,9 @@ const AskMeAnything = {
                console.error('AskMeAnything: Fetch Error:', error);
                responseArea.textContent = 'Error: Could not connect to the server.';
            }
-           responseArea.classList.remove('loading'); // Remove loading state
-           responseArea.classList.add('error');     // Add error state
-           responseArea.classList.add('visible');   // Ensure visible
+           responseArea.classList.remove('loading'); // Still remove just in case
+           responseArea.classList.add('error');
+           responseArea.classList.add('visible'); // Add visible here
         } finally {
           console.log('AskMeAnything: Re-enabling input.');
           searchInput.disabled = false;

@@ -72,7 +72,6 @@
   --response-bg: rgba(255, 255, 255, 0.65); /* Semi-transparent white for glassy effect */
   --response-border-color: rgba(255, 255, 255, 0.4); /* Lighter border for glassy effect */
   --border-color: #e5e7eb;
-  --loading-gradient: linear-gradient(90deg, #ccc 25%, #eee 50%, #ccc 75%);
 }
 
 .ask-me-anything-container {
@@ -164,19 +163,6 @@
 .response-area.visible {
   display: block;
   animation: fadeInUp 0.5s ease forwards; /* Apply fade-in animation */
-}
-
-.response-area.loading {
-  color: #6b7280; /* Keep loading text color */
-  font-style: italic;
-  font-size: calc(var(--response-font-size) * 0.95);
-  /* Shimmer effect */
-  background: var(--loading-gradient);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent; /* Make text transparent to show gradient */
-  animation: shimmer 2s linear infinite;
 }
 
 .response-area.error {
