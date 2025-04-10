@@ -22,7 +22,7 @@ DIRECT_URL=postgres://postgres.your_db_id:your_password@aws-0-us-east-1.pooler.s
 NODE_ENV=production
 SKIP_BUILD_SCRIPT=true
 SHOPIFY_APP_URL=your_vercel_domain_here
-SCOPES=write_products
+SCOPES=read_products
 ```
 
 ## Important Supabase Notes

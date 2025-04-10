@@ -5,26 +5,20 @@
   "framework": "remix",
   "regions": ["iad1"],
   "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/server.mjs" }
+  ],
   "env": {
     "NODE_ENV": "production",
     "SKIP_BUILD_SCRIPT": "true"
   },
-  "routes": [
-    { "src": "/api/health", "dest": "/api/health.js" },
-    { "src": "/health", "dest": "/api/health.js" },
-    { "src": "/api/debug", "dest": "/api/debug.js" },
-    { "src": "/debug", "dest": "/api/debug.js" },
-    { "src": "/favicon.ico", "dest": "/favicon.ico" },
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*)", "dest": "/$1" }
-  ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
         { "key": "Content-Security-Policy", "value": "frame-ancestors 'self' https://*.myshopify.com https://*.shopify.com https://admin.shopify.com" },
-        { "key": "Access-Control-Allow-Origin", "value": "https://admin.shopify.com https://*.myshopify.com" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
         { "key": "Access-Control-Allow-Headers", "value": "X-Requested-With, Content-Type, Accept" }
       ]
