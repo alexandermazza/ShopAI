@@ -2,34 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2024-04-10
-
-### Added
-- Deployed app to Vercel for production hosting
-- Added debugging routes (`/health` and `/debug`) to help diagnose deployment issues
-- Implemented detailed logging in app routes for better error tracking
-- Added middleware.js to handle security headers for Shopify iframe embedding
-
-### Changed
-- Modified Remix configuration to use ES Module syntax (instead of CommonJS)
-- Updated database connection handling for improved compatibility with Vercel:
-  - Added connection pooling parameters to database URL
-  - Added direct connection URL for migrations
-  - Improved error handling for database connections
-- Updated app URL configuration across various files to match Vercel deployment URL
-
-### Fixed
-- Resolved ES Module/CommonJS conflict in remix.config.js by converting to export syntax
-- Fixed CORS and iframe embedding issues by implementing proper security headers
-- Addressed Vercel deployment build failures by modifying environment variables and build process
-- Fixed environment variable inconsistencies, especially with SCOPES variable
-
-### Known Issues
-- Routing problems in Vercel deployment possibly related to middleware configuration
-- 404 errors when accessing routes directly (like /health endpoint)
-- Possible issues with how Vercel edge functions handle Remix routes when middleware is active
-- App is not connecting properly within Shopify iframe, possibly due to security headers or routing
-
 ## [Unreleased] - 2024-06-01
 
 ### Added

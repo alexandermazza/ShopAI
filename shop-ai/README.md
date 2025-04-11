@@ -108,7 +108,7 @@ The database is defined as a Prisma schema in `prisma/schema.prisma`.
 This use of SQLite works in production if your app runs as a single instance.
 The database that works best for you depends on the data your app needs and how it is queried.
 You can run your database of choice on a server yourself or host it with a SaaS company.
-Here’s a short list of databases providers that provide a free tier to get started:
+Here's a short list of databases providers that provide a free tier to get started:
 
 | Database   | Type             | Hosters                                                                                                                                                                                                                               |
 | ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -146,30 +146,6 @@ pnpm run build
 When you're ready to set up your app in production, you can follow [our deployment documentation](https://shopify.dev/docs/apps/deployment/web) to host your app on a cloud provider like [Heroku](https://www.heroku.com/) or [Fly.io](https://fly.io/).
 
 When you reach the step for [setting up environment variables](https://shopify.dev/docs/apps/deployment/web#set-env-vars), you also need to set the variable `NODE_ENV=production`.
-
-### Hosting on Vercel
-
-Using the Vercel Preset is recommended when hosting your Shopify Remix app on Vercel. You'll also want to ensure imports that would normally come from `@remix-run/node` are imported from `@vercel/remix` instead. Learn more about hosting Remix apps on Vercel [here](https://vercel.com/docs/frameworks/remix).
-
-```diff
-// vite.config.ts
-import { vitePlugin as remix } from "@remix-run/dev";
-import { defineConfig, type UserConfig } from "vite";
-import tsconfigPaths from "vite-tsconfig-paths";
-+ import { vercelPreset } from '@vercel/remix/vite';
-
-installGlobals();
-
-export default defineConfig({
-  plugins: [
-    remix({
-      ignoredRouteFiles: ["**/.*"],
-+     presets: [vercelPreset()],
-    }),
-    tsconfigPaths(),
-  ],
-});
-```
 
 ## Gotchas / Troubleshooting
 
@@ -257,16 +233,6 @@ By default the [graphql.vscode-graphql](https://marketplace.visualstudio.com/ite
 2. You use a third party GraphQL API.
 
 in this situation, please update the [.graphqlrc.ts](https://github.com/Shopify/shopify-app-template-remix/blob/main/.graphqlrc.ts) config.
-
-### First parameter has member 'readable' that is not a ReadableStream.
-
-See [hosting on Vercel](#hosting-on-vercel).
-
-### Admin object undefined on webhook events triggered by the CLI
-
-When you trigger a webhook event using the Shopify CLI, the `admin` object will be `undefined`. This is because the CLI triggers an event with a valid, but non-existent, shop. The `admin` object is only available when the webhook is triggered by a shop that has installed the app.
-
-Webhooks triggered by the CLI are intended for initial experimentation testing of your webhook configuration. For more information on how to test your webhooks, see the [Shopify CLI documentation](https://shopify.dev/docs/apps/tools/cli/commands#webhook-trigger).
 
 ### Using Defer & await for streaming responses
 

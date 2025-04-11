@@ -70,3 +70,8 @@ Allow `SHOP_REDACT` webhook to process without admin context
 ## v2024.07.16
 
 Started tracking changes and releases using calver
+
+## YYYY.MM.DD
+- Removed Vercel deployment configuration and dependencies.
+- Switched Prisma database from PostgreSQL to SQLite for standard development setup.
+- Corrected Remix resource route path for App Proxy requests.
