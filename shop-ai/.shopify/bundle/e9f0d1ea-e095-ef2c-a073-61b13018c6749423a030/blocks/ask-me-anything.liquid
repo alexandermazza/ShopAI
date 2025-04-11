@@ -7,17 +7,51 @@
   # Collect all relevant product information into a single string or JSON object
   # Example: Basic details. Enhance this with metafields, variant info, etc.
   assign product_json_string = product | json
-  assign context_string = ""
-  assign context_string = context_string | append: "Title: " | append: product.title | append: "\n"
-  assign context_string = context_string | append: "Description: " | append: product.description | strip_html | append: "\n"
-  assign context_string = context_string | append: "Vendor: " | append: product.vendor | append: "\n"
-  assign context_string = context_string | append: "Type: " | append: product.type | append: "\n"
-  # Add more details like price, variants, metafields as needed
+  assign context_string = ''
+  assign context_string = context_string | append: 'Product Title: ' | append: product.title | append: '\n'
+  assign context_string = context_string | append: 'Product Description: ' | append: product.description | strip_html | append: '\n'
+  assign context_string = context_string | append: 'Vendor: ' | append: product.vendor | append: '\n'
+  assign context_string = context_string | append: 'Type: ' | append: product.type | append: '\n'
+
+  # Format prices first
+  assign price_min_formatted = product.price_min | money
+  assign price_max_formatted = product.price_max | money
+  assign context_string = context_string | append: 'Price Range: ' | append: price_min_formatted | append: ' - ' | append: price_max_formatted | append: '\n'
+
+  if product.options_with_values.size > 0
+    assign context_string = context_string | append: 'Available Options:\n'
+    for option in product.options_with_values
+      # Join values first
+      assign joined_values = option.values | join: ', '
+      assign context_string = context_string | append: '- ' | append: option.name | append: ': ' | append: joined_values | append: '\n'
+    endfor
+  endif
+
+  if product.variants.size > 0
+    assign context_string = context_string | append: 'Variants:\n'
+    for variant in product.variants
+      assign availability = ''
+      if variant.available
+        assign availability = 'Available'
+      else
+        assign availability = 'Sold Out'
+      endif
+      # Format variant price first
+      assign variant_price_formatted = variant.price | money
+      assign context_string = context_string | append: '- ' | append: variant.title | append: ' (' | append: variant_price_formatted | append: ') - ' | append: availability | append: '\n'
+    endfor
+  endif
+
+  if product.tags.size > 0
+    # Join tags first
+    assign joined_tags = product.tags | join: ', '
+    assign context_string = context_string | append: 'Tags: ' | append: joined_tags | append: '\n'
+  endif
 
   # TODO: Consider adding image alt text, review content if available
 -%}
 
-<div id="ask-me-anything" class="ask-me-anything-container" data-product-context="{{ context_string | escape }}">
+<div id="ask-me-anything" class="ask-me-anything-container" data-product-context="{{ context_string | escape }}" {% if block.settings.search_border_color != blank %}style="--search-border-color-setting: {{ block.settings.search_border_color }};"{% endif %}>
   <div class="search-wrapper">
     <span class="search-icon">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -32,8 +66,11 @@
       maxlength="300"
     >
   </div>
-  <div class="response-area" aria-live="polite">
-    <!-- AI response will be displayed here -->
+  <div class="response-area relative p-4 pb-8" aria-live="polite">
+    <span class="ai-answer-content"><!-- AI response will be displayed here --></span>
+    <div id="powered-by-attribution" class="text-gray-400 hidden">
+      Powered by ShopAI
+    </div>
   </div>
 </div>
 
@@ -61,7 +98,8 @@
 }
 
 :root {
-  --ai-gradient: linear-gradient(90deg, #007AFF, #AF52DE, #FF2D55, #FF9500);
+  --ai-gradient: linear-gradient(90deg, #AF52DE, #007AFF, #AF52DE, #FF2D55, #FF9500);
+  --shimmer-gradient: linear-gradient(90deg, #f5f5f5, #a0a0a0, #f5f5f5); /* Grayscale gradient with more contrast */
   --input-height: 4.5rem;
   --default-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
   --input-font-size: 1.6rem;
@@ -85,7 +123,8 @@
   align-items: center;
   padding: 4px; /* Increased padding for thicker border feel */
   border-radius: 9999px;
-  background: var(--ai-gradient);
+  /* Use the setting color if defined, otherwise use the default gradient */
+  background: var(--search-border-color-setting, var(--ai-gradient));
   box-shadow: var(--default-shadow);
   transition: box-shadow 0.3s ease;
 }
@@ -165,6 +204,17 @@
   animation: fadeInUp 0.5s ease forwards; /* Apply fade-in animation */
 }
 
+/* Add loading state with shimmer */
+.response-area.loading {
+  background: var(--shimmer-gradient); /* Use grayscale gradient */
+  background-size: 200% 100%; /* Needs to match shimmer animation */
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent; /* Make text transparent to show gradient */
+  animation: shimmer 1.5s linear infinite, fadeInUp 0.5s ease forwards;
+  /* Keep fadeInUp if desired, or remove if loading should appear instantly */
+}
+
 .response-area.error {
   color: #dc2626;
   font-weight: 500;
@@ -175,6 +225,20 @@
   background-clip: initial;
   color: #dc2626;
   animation: none;
+}
+
+/* Style for the attribution text */
+#powered-by-attribution {
+  position: absolute;
+  bottom: 8px; /* Equivalent to Tailwind's bottom-2 */
+  right: 12px; /* Equivalent to Tailwind's right-3 */
+  font-size: 6px;
+  /* color: inherit; /* Inherit text-gray-400 from parent, or set explicitly */
+}
+
+/* Ensure it's hidden by default (JS controls visibility) */
+#powered-by-attribution.hidden {
+  display: none;
 }
 </style>
 {% schema %}
@@ -188,6 +252,12 @@
       "id": "placeholder",
       "label": "Search Placeholder",
       "default": "Ask me anything"
+    },
+    {
+      "type": "color",
+      "id": "search_border_color",
+      "label": "Search Bar Border Color",
+      "info": "Overrides the default gradient border if a color is selected."
     }
   ]
 }

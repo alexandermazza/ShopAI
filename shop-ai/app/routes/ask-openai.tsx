@@ -40,9 +40,9 @@ export async function action({ request }: ActionFunctionArgs) {
     // Construct the prompt for OpenAI
     const prompt = `
       You are a helpful assistant for an online store.
-      You are allowed to infer, but you are not allowed to make up information.
-      Answer the user's question based *only* on the following product information.
-      If the answer cannot be found in the product information, say "I'm sorry, I don't have that information based on the product details."
+      You are allowed to infer and make assumptions based on the product information
+      Answer the user's question based on the following product information.
+      If the answer cannot be found in the product information or you are unable to make an inference based on the product information, say "I'm sorry, I don't have that information based on the product details."
 
       Product Information:
       ---
@@ -57,10 +57,10 @@ export async function action({ request }: ActionFunctionArgs) {
     console.log("Sending prompt to OpenAI..."); // Log before calling API
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // Or consider gpt-4-turbo-preview for potentially better results
+      model: "gpt-4o-mini", // Or consider gpt-4-turbo-preview for potentially better results
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.7, // Adjust for creativity vs. factuality
-      max_tokens: 150, // Limit response length
+      temperature: 0.9, // Adjust for creativity vs. factuality
+      max_tokens: 180, // Limit response length
     });
 
     console.log("Received response from OpenAI."); // Log after successful API call

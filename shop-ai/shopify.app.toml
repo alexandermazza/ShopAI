@@ -3,7 +3,7 @@
 client_id = "2a2ba6e7ada972054aa4e30f4d530a0d"
 name = "ShopAI"
 handle = "shopai-25"
-application_url = "https://precision-ballet-beds-catherine.trycloudflare.com"
+application_url = "https://grows-stanley-taken-split.trycloudflare.com"
 embedded = true
 
 [build]
@@ -27,15 +27,15 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://precision-ballet-beds-catherine.trycloudflare.com/auth/callback",
-  "https://precision-ballet-beds-catherine.trycloudflare.com/auth/shopify/callback",
-  "https://precision-ballet-beds-catherine.trycloudflare.com/api/auth/callback"
+  "https://grows-stanley-taken-split.trycloudflare.com/auth/callback",
+  "https://grows-stanley-taken-split.trycloudflare.com/auth/shopify/callback",
+  "https://grows-stanley-taken-split.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://precision-ballet-beds-catherine.trycloudflare.com:3000"
+url = "https://grows-stanley-taken-split.trycloudflare.com:3000"
 subpath = "proxy"
 prefix = "apps"

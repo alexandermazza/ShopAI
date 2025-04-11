@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
   - Frontend `maxlength` attribute on search input.
   - Server-side length validation for question and product context.
   - Configured hard spending limits in OpenAI account (manual step).
+- "Powered by ShopAI" attribution text to the Ask Me Anything block response area.
 
 ### Changed
 - **OpenAI Integration:**
@@ -25,6 +26,8 @@ All notable changes to this project will be documented in this file.
     - Adjusted padding, margins, and shadow for search bar.
     - Increased font size and line height for response area.
     - Ensured consistent font usage.
+  - Updated Ask Me Anything block styling for attribution text (position, size, color).
+  - Refined JavaScript error handling in Ask Me Anything block to better report backend/proxy errors and prevent console clutter.
 - **Internal:** Renamed backend API route from `resource-openai.tsx` to `api.resource-openai.tsx` to align with App Proxy configuration.
 
 ### Fixed

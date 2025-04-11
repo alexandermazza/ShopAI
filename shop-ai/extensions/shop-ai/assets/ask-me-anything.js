@@ -8,12 +8,16 @@ const AskMeAnything = {
 
     const searchInput = containerElement.querySelector('.search-input');
     const responseArea = containerElement.querySelector('.response-area');
+    const answerContentElement = responseArea?.querySelector('.ai-answer-content');
+    const attributionElement = responseArea?.querySelector('#powered-by-attribution');
     const productContext = containerElement.dataset.productContext;
 
-    if (!searchInput || !responseArea || !productContext) {
+    if (!searchInput || !responseArea || !answerContentElement || !attributionElement || !productContext) {
       console.error('AskMeAnything: Missing required elements or product context.');
       if(!searchInput) console.error('>>> searchInput missing');
       if(!responseArea) console.error('>>> responseArea missing');
+      if(!answerContentElement) console.error('>>> answerContentElement missing');
+      if(!attributionElement) console.error('>>> attributionElement missing');
       if(!productContext) console.error('>>> productContext missing');
       if (responseArea) {
           responseArea.textContent = 'Error: Could not initialize component.';
@@ -49,10 +53,11 @@ const AskMeAnything = {
         }
 
         // --- Show Loading State ---
-        // responseArea.textContent = 'Thinking...';
-        // responseArea.classList.remove('error');
-        // responseArea.classList.add('loading');
-        // responseArea.classList.add('visible'); 
+        answerContentElement.textContent = 'Thinking...';
+        responseArea.classList.remove('error');
+        responseArea.classList.add('loading');
+        responseArea.classList.add('visible');
+        attributionElement.classList.add('hidden');
         searchInput.disabled = true;
 
         // Use the App Proxy path
@@ -72,49 +77,57 @@ const AskMeAnything = {
             }),
           });
 
+          // --- Check Response Status BEFORE Parsing JSON ---
+          if (!response.ok) {
+            let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+            // Check if the error response is HTML (likely a server error page)
+            if (response.headers.get('content-type')?.includes('text/html')) {
+              errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
+              console.error("Received HTML error page from App Proxy.");
+            } else {
+              // Try to parse as JSON in case the error response IS JSON
+              try {
+                const errorResult = await response.json();
+                errorMessage = errorResult.error || errorMessage;
+                console.error('AskMeAnything: API Error (JSON Response):', errorResult);
+              } catch (parseError) {
+                 // Only log parse error if we didn't already identify it as HTML
+                 if (!response.headers.get('content-type')?.includes('text/html')) {
+                    console.error('AskMeAnything: Failed to parse non-HTML error response body:', parseError);
+                 }
+                 // Keep the original errorMessage based on status
+              }
+            }
+            // Throw an error to be caught by the catch block below
+            throw new Error(errorMessage);
+          }
+
+          // --- If response.ok, Parse JSON and Display Result ---
           const result = await response.json();
 
-          // --- Display Result or Error ---
-           if (!response.ok || result.error) {
-             // Attempt to get a more specific error from Shopify's proxy response if it's not JSON
-             let errorMessage = result.error || `API Error: ${response.statusText}`;
-             if (!response.ok && response.headers.get('content-type')?.includes('text/html')) {
-                // If Shopify returned an HTML error page via the proxy
-                errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
-                console.error("Received HTML error page from App Proxy.");
-             } else if (result.error) {
-                console.error('AskMeAnything: API Error (JSON):', result);
-             } else {
-                console.error(`AskMeAnything: API Error (Status ${response.status}):`, response.statusText);
-             }
-             responseArea.textContent = `Error: ${errorMessage}`;
-             responseArea.classList.remove('loading'); // Still remove just in case
-             responseArea.classList.add('error');
-             responseArea.classList.add('visible'); // Add visible here
-           } else {
+          if (result.error) {
+             console.error('AskMeAnything: API Error (JSON Payload):', result);
+             // Throw error to be caught below
+             throw new Error(result.error);
+          } else {
              console.log('AskMeAnything: API Success, displaying answer.');
-             responseArea.textContent = result.answer;
-             responseArea.classList.remove('loading'); // Still remove just in case
-             responseArea.classList.remove('error');
-             responseArea.classList.add('visible'); // Add visible here
-           }
+             answerContentElement.textContent = result.answer;
+             responseArea.classList.remove('loading', 'error');
+             responseArea.classList.add('visible');
+             attributionElement.classList.remove('hidden');
+          }
 
         } catch (error) {
-           // Handle JSON parsing errors specifically, often caused by non-JSON responses (like HTML 404s)
-           if (error instanceof SyntaxError) {
-               console.error('AskMeAnything: Fetch Error - Failed to parse JSON response:', error);
-               responseArea.textContent = 'Error: Received an invalid response from the server.';
-           } else {
-               console.error('AskMeAnything: Fetch Error:', error);
-               responseArea.textContent = 'Error: Could not connect to the server.';
-           }
-           responseArea.classList.remove('loading'); // Still remove just in case
-           responseArea.classList.add('error');
-           responseArea.classList.add('visible'); // Add visible here
+           console.error('AskMeAnything: Error during fetch or processing:', error);
+           // Display the error message (could be from thrown Error or network/parse error)
+           answerContentElement.textContent = `Error: ${error.message || 'An unexpected error occurred.'}`;
+           responseArea.classList.remove('loading');
+           responseArea.classList.add('error', 'visible');
+           attributionElement.classList.remove('hidden');
         } finally {
-          console.log('AskMeAnything: Re-enabling input.');
-          searchInput.disabled = false;
-          searchInput.focus();
+           console.log('AskMeAnything: Re-enabling input.');
+           searchInput.disabled = false;
+           searchInput.focus();
         }
       }
     });
