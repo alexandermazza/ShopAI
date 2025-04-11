@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2024-06-03
+
+### Added
+- Integrated Judge.me review metafields into product context:
+  - Added average rating and review count data to the AI context.
+  - Implemented conditional formatting to handle products with and without reviews.
+  - Used the standard Shopify metafields from Judge.me (`reviews.rating` and `reviews.rating_count`).
+
 ## [Unreleased] - 2024-06-01
 
 ### Added
