@@ -2,6 +2,9 @@
 
 ShopAI is a Shopify Theme App Extension that adds an "Ask Me Anything" search bar to your product pages. Customers can ask questions about the product, and the app uses the OpenAI API to provide answers based on the product's description and details.
 
+<img width="593" alt="image" src="https://github.com/user-attachments/assets/6adb16d2-efe4-4e37-ad92-2d62862a7887" />
+
+
 ## Features
 
 *   **"Ask Me Anything" Search Bar:** Allows customers to ask natural language questions about products directly on the product page.
