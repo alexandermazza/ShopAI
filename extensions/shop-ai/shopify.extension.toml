@@ -1,0 +1,8 @@
+name = "ShopAI"
+type = "theme"
+
+# Specifies where this extension can be used in the theme editor
+extension_points = [
+  "section"
+]
+
