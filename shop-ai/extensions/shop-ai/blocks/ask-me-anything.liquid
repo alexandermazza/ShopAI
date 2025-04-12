@@ -77,6 +77,7 @@
   # TODO: Consider adding image alt text, review content if available
 -%}
 
+{% if block.settings.enable_ask_me_anything %}
 <div id="ask-me-anything" class="ask-me-anything-container" data-product-context="{{ context_string | escape }}" {% if block.settings.search_border_color != blank %}style="--search-border-color-setting: {{ block.settings.search_border_color }};"{% endif %}>
   <form class="ask-me-anything-form">
     <div class="search-wrapper">
@@ -86,12 +87,13 @@
         </svg>
       </span>
       <input
-        type="text"
+        type="search"
         placeholder="{{ block.settings.placeholder | default: 'Ask me anything' }}"
         class="search-input"
         aria-label="{{ block.settings.placeholder | default: 'Ask me anything' }} search"
         maxlength="300"
       >
+      <button type="button" class="clear-button hidden" aria-label="Clear search input">&times;</button>
       <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Submit</button>
     </div>
   </form>
@@ -106,6 +108,39 @@
 <script>
   // Pass product context to JS (Alternative: use data attribute as shown above)
   // const productContextForJs = {{ product_json_string }};
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Wait for a short period to allow review widgets to load
+    setTimeout(() => {
+      // Define selectors for different review apps
+      const reviewSelectors = [
+        '.jdgm-rev__body', // Judge.me
+        '.loox-review-content', // Loox
+        '.yotpo-review' // Yotpo
+      ];
+
+      let reviews = [];
+
+      // Check for each review selector
+      for (const selector of reviewSelectors) {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+          reviews = Array.from(elements).slice(0, 3).map(el => el.innerText);
+          break; // Stop checking once we find reviews
+        }
+      }
+
+      // Pass the reviews to the AI input
+      if (reviews.length > 0) {
+        console.log("Review snippets:", reviews);
+        // Here you would add the reviews to your AI input logic
+      } else {
+        console.log("No reviews found.");
+      }
+    }, 2000); // Adjust the timeout as needed
+  });
 </script>
 
 <style>
@@ -150,6 +185,7 @@
 .search-wrapper {
   display: flex;
   align-items: center;
+  position: relative; /* Add relative positioning for absolute children */
   padding: 4px; /* Increased padding for thicker border feel */
   border-radius: 9999px;
   /* Use the setting color if defined, otherwise use the default gradient */
@@ -183,6 +219,7 @@
   height: var(--input-height);
   box-sizing: border-box;
   line-height: normal;
+  padding-right: 5.5rem; /* Add padding to prevent text overlap with clear button */
 }
 
 .search-input::placeholder {
@@ -278,13 +315,73 @@
   clip: rect(1px, 1px, 1px, 1px);
   white-space: nowrap; /* prevent line breaks */
 }
+
+/* Clear Button Styles */
+.clear-button {
+  position: absolute;
+  right: 3.5rem; /* Move the clear button slightly to the left */
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.15); /* Semi-transparent dark background */
+  color: rgba(255, 255, 255, 0.8); /* Semi-transparent white text */
+  border: none;
+  border-radius: 50%;
+  width: 2rem; /* Size */
+  height: 2rem; /* Size */
+  font-size: 1.6rem; /* Cross size */
+  line-height: 1.9rem; /* Center the cross vertically */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+  backdrop-filter: blur(3px); /* Glassy effect */
+  -webkit-backdrop-filter: blur(3px); /* Safari support */
+  z-index: 5; /* Ensure it's above the input visually */
+}
+
+/* Hide browser default cancel button for search input */
+.search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none !important;
+}
+
+/* For IE/Edge (older versions) */
+.search-input::-ms-clear {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.clear-button:hover,
+.clear-button:focus {
+  background-color: rgba(0, 0, 0, 0.25);
+  opacity: 1;
+  outline: none;
+}
+
+/* Utility to hide the button */
+.clear-button.hidden {
+  display: none;
+}
 </style>
+{% endif %}
+
 {% schema %}
 {
   "name": "Ask Me Anything",
   "target": "section",
   "javascript": "ask-me-anything.js",
   "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_ask_me_anything",
+      "label": "Enable Ask Me Anything",
+      "default": true,
+      "info": "Uncheck this to hide the block if the ShopAI app is not active or configured."
+    },
     {
       "type": "text",
       "id": "placeholder",

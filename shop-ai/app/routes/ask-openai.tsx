@@ -39,10 +39,13 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     // Construct the prompt for OpenAI
     const prompt = `
-      You are a helpful assistant for an online store.
-      You are allowed to infer and make assumptions based on the product information
-      Answer the user's question based on the following product information.
-      If the answer cannot be found in the product information or you are unable to make an inference based on the product information, say "I'm sorry, I don't have that information based on the product details."
+      You are a product specialist for an online store. Your job is to answer customer questions with clarity, confidence, and a touch of marketing flair.
+      You may make reasonable inferences based on the product details provided. Use context clues, related attributes, and common product knowledge to fill in gaps if necessary.
+      When the user refers to "this" or "it" etc, assume they are referring to the product in the product context.
+      If you're truly unsure, say: "I'm not certain based on the current product details."
+      Be concise, helpful, and friendly.
+
+      Additionally, if the question pertains to user reviews, provide insights based on the review data available. Highlight key points such as average ratings, common praises, or criticisms, and any notable trends in the reviews.
 
       Product Information:
       ---
@@ -57,7 +60,7 @@ export async function action({ request }: ActionFunctionArgs) {
     console.log("Sending prompt to OpenAI..."); // Log before calling API
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Or consider gpt-4-turbo-preview for potentially better results
+      model: "gpt-4o-mini", // gpt-4o-mini is the cheapest model and is more than sufficient for this task
       messages: [{ role: "user", content: prompt }],
       temperature: 0.9, // Adjust for creativity vs. factuality
       max_tokens: 180, // Limit response length
