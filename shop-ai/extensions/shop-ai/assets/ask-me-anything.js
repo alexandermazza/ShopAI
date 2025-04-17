@@ -1,4 +1,108 @@
 const AskMeAnything = {
+  // --- Helper to wait for Judge.me reviews to appear ---
+  async waitForJudgeMeReviews(maxWaitMs = 20000) {
+    // Try immediately
+    let reviews = document.querySelectorAll('.jdgm-rev');
+    if (reviews.length > 0) {
+      console.log('AskMeAnything: Found .jdgm-rev reviews immediately:', reviews.length);
+      return reviews;
+    }
+    // Set up observer
+    return new Promise(resolve => {
+      let found = false;
+      const observer = new MutationObserver(() => {
+        const reviewsNow = document.querySelectorAll('.jdgm-rev');
+        if (reviewsNow.length > 0) {
+          found = true;
+          console.log('AskMeAnything: MutationObserver found .jdgm-rev reviews:', reviewsNow.length);
+          observer.disconnect();
+          resolve(reviewsNow);
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      setTimeout(() => {
+        if (!found) {
+          observer.disconnect();
+          const reviewsNow = document.querySelectorAll('.jdgm-rev');
+          console.log('AskMeAnything: Timeout, found .jdgm-rev reviews:', reviewsNow.length);
+          resolve(reviewsNow);
+        }
+      }, maxWaitMs);
+    });
+  },
+
+  // --- Helper Function to Scrape Reviews ---
+  async scrapeReviewContent() {
+    console.log("AskMeAnything: Attempting to scrape review content from DOM.");
+    let reviewText = '\nCustomer Reviews:\n';
+    let reviews = [];
+
+    // Use robust waiting logic for Judge.me reviews
+    const judgeMeReviews = await this.waitForJudgeMeReviews();
+    if (judgeMeReviews.length > 0) {
+      console.log(`AskMeAnything: Processing ${judgeMeReviews.length} Judge.me review elements.`);
+      judgeMeReviews.forEach((reviewElement, index) => {
+        if (index >= 5) return; // Limit to 5 reviews
+        const ratingElement = reviewElement.querySelector('.jdgm-rev__rating');
+        const authorElement = reviewElement.querySelector('.jdgm-rev__author');
+        // Try to get the <p> inside .jdgm-rev__body, fallback to .jdgm-rev__body text
+        let bodyText = '';
+        const bodyP = reviewElement.querySelector('.jdgm-rev__body p');
+        const bodyDiv = reviewElement.querySelector('.jdgm-rev__body');
+        if (bodyP && bodyP.textContent.trim()) {
+          bodyText = bodyP.textContent.trim();
+          console.log(`AskMeAnything: Review #${index+1} - Found body <p>:`, bodyText);
+        } else if (bodyDiv && bodyDiv.textContent.trim()) {
+          bodyText = bodyDiv.textContent.trim();
+          console.log(`AskMeAnything: Review #${index+1} - Found body div:`, bodyText);
+        } else {
+          bodyText = 'Review Text Missing';
+          console.log(`AskMeAnything: Review #${index+1} - No review body found.`);
+        }
+        const rating = ratingElement ? (ratingElement.getAttribute('data-score') || ratingElement.textContent.trim() || '?') : '?';
+        const author = authorElement ? authorElement.textContent.trim().replace(/\s+/g, ' ') : '';
+        reviews.push({
+          rating,
+          author,
+          body: bodyText
+        });
+      });
+    } else {
+      // Try native Shopify reviews (example selectors, adjust as needed)
+      let nativeReviews = document.querySelectorAll('.spr-review');
+      if (nativeReviews.length === 0) {
+        // Try another common selector
+        nativeReviews = document.querySelectorAll('.shopify-product-reviews .review');
+      }
+      if (nativeReviews.length > 0) {
+        console.log(`AskMeAnything: Found ${nativeReviews.length} native Shopify review elements.`);
+        nativeReviews.forEach((reviewElement, index) => {
+          if (index >= 5) return;
+          const ratingElement = reviewElement.querySelector('.spr-review-rating, .review-rating');
+          const authorElement = reviewElement.querySelector('.spr-review-author, .review-author');
+          const bodyElement = reviewElement.querySelector('.spr-review-content, .review-content');
+          const rating = ratingElement ? ratingElement.textContent.trim().replace(/\s+/g, ' ') : '?';
+          const author = authorElement ? authorElement.textContent.trim().replace(/\s+/g, ' ') : '';
+          const body = bodyElement ? bodyElement.textContent.trim().replace(/\s+/g, ' ') : 'Review Text Missing';
+          reviews.push({
+            rating,
+            author,
+            body
+          });
+        });
+      }
+    }
+    if (reviews.length === 0) {
+      console.log("AskMeAnything: No review content scraped from the page.");
+      return "\nCustomer Reviews: No reviews found on this page.\n";
+    }
+    reviews.forEach((r, i) => {
+      reviewText += `- Review ${i + 1}: Rating: ${r.rating}/5. ${r.author ? 'By: ' + r.author + '. ' : ''}Comment: \"${r.body}\"\n`;
+    });
+    console.log(`AskMeAnything: Scraped ${reviews.length} reviews.`);
+    return reviewText;
+  },
+
   onMount(containerElement = document) {
     console.log('AskMeAnything: onMount called for container:', containerElement);
     if (!containerElement || containerElement.id !== 'ask-me-anything') {
@@ -11,16 +115,14 @@ const AskMeAnything = {
     const answerContentElement = responseArea?.querySelector('.ai-answer-content');
     const attributionElement = responseArea?.querySelector('#powered-by-attribution');
     const productContext = containerElement.dataset.productContext;
-    const clearButton = containerElement.querySelector('.clear-button');
 
-    if (!searchInput || !responseArea || !answerContentElement || !attributionElement || !productContext || !clearButton) {
+    if (!searchInput || !responseArea || !answerContentElement || !attributionElement || !productContext) {
       console.error('AskMeAnything: Missing required elements or product context.');
       if(!searchInput) console.error('>>> searchInput missing');
       if(!responseArea) console.error('>>> responseArea missing');
       if(!answerContentElement) console.error('>>> answerContentElement missing');
       if(!attributionElement) console.error('>>> attributionElement missing');
       if(!productContext) console.error('>>> productContext missing');
-      if(!clearButton) console.error('>>> clearButton missing');
       if (responseArea) {
           responseArea.textContent = 'Error: Could not initialize component.';
           responseArea.style.display = 'block';
@@ -30,71 +132,18 @@ const AskMeAnything = {
     }
     console.log('AskMeAnything: Found elements and context.');
 
-    const form = containerElement.querySelector('.ask-me-anything-form');
-
-    if (!form) {
-      console.error('AskMeAnything: Missing form element.');
-      if (responseArea) {
-          responseArea.textContent = 'Error: Form element missing.';
-          responseArea.style.display = 'block';
-          responseArea.className = 'response-area error';
-      }
-      return;
-    }
-
-    // Add focus effects
-    searchInput.addEventListener('focus', () => {
-      searchInput.closest('.search-wrapper').style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-    });
-
-    searchInput.addEventListener('blur', () => {
-      searchInput.closest('.search-wrapper').style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
-    });
-
-    // Handle input changes - Show/hide clear button
-    searchInput.addEventListener('input', (e) => {
-      const query = e.target.value;
-      if (query.length > 0) {
-        clearButton.classList.remove('hidden');
-      } else {
-        clearButton.classList.add('hidden');
-      }
-      // TODO: Implement search functionality (maybe with debouncing if needed later)
-    });
-
-    // Handle clear button click
-    clearButton.addEventListener('click', () => {
-      searchInput.value = '';
-      // Manually trigger input event to hide the button
-      searchInput.dispatchEvent(new Event('input', { bubbles: true })); 
-      searchInput.focus(); // Keep focus on the input
-    });
-
     // Handle form submission
-    form.addEventListener('submit', async (e) => {
+    searchInput.addEventListener('keypress', async (e) => {
+      if (e.key === 'Enter') {
         e.preventDefault();
         const query = searchInput.value.trim();
         if (!query) {
            return;
         }
 
-        // --- Wait for Reviews to Load ---
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second
-
-        // --- Append Reviews to Product Context ---
-        const reviews = [];
-        const reviewSelectors = ['.jdgm-rev__body', '.loox-review-content', '.yotpo-review'];
-        for (const selector of reviewSelectors) {
-          const elements = document.querySelectorAll(selector);
-          if (elements.length > 0) {
-            reviews.push(...Array.from(elements).slice(0, 3).map(el => el.innerText));
-            break; // Stop checking once we find reviews
-          }
-        }
-        console.log('Captured Reviews:', reviews); // Log captured reviews
-        const reviewsText = reviews.length > 0 ? `\nCustomer Reviews:\n${reviews.join('\n')}` : '';
-        const fullProductContext = `${productContext}${reviewsText}`;
-        console.log('Full Product Context:', fullProductContext); // Log full product context
+        // --- Scrape review content just before sending ---
+        const scrapedReviews = await this.scrapeReviewContent(); // Now async
+        const combinedContext = `${productContext}\n${scrapedReviews}`;
 
         // --- Show Loading State ---
         answerContentElement.textContent = 'Thinking...';
@@ -110,14 +159,14 @@ const AskMeAnything = {
 
         try {
           // --- Call Backend API ---
-          const response = await fetch(apiUrl, { // <-- Use the App Proxy URL
+          const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               question: query,
-              productContext: fullProductContext,
+              productContext: combinedContext, // Send combined context
             }),
           });
 
@@ -173,6 +222,7 @@ const AskMeAnything = {
            searchInput.disabled = false;
            searchInput.focus();
         }
+      }
     });
   }
 };

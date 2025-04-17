@@ -49,6 +49,10 @@ All notable changes to this project will be documented in this file.
   - Removed excessive console logging from input event listeners in `ask-me-anything.js`.
 - **Theme Editor:** Resolved issue where the extension section wasn't appearing by moving block file out of subdirectory and adding `extension_points` to `shopify.extension.toml`.
 - **Styling:** Fixed various search bar styling issues, including focus state inconsistencies.
+- **Backend Server:** Resolved backend server startup issue causing 500 errors on App Proxy requests:
+  - Identified `EADDRINUSE` error for port 9293 preventing `shopify app dev` from starting correctly.
+  - Used `lsof` to find and `kill` the conflicting process (a leftover node process).
+  - Successfully restarted the development server after clearing the port conflict.
 
 ### Removed
 - Removed default star rating component provided by Shopify CLI template.
@@ -81,4 +85,12 @@ All notable changes to this project will be documented in this file.
   - Centered placeholder text vertically.
 
 ### Fixed
-- Resolved issue where the extension section wasn't appearing in the Theme Editor by moving block file out of subdirectory and adding `extension_points` to `shopify.extension.toml`. 
+- Resolved issue where the extension section wasn't appearing in the Theme Editor by moving block file out of subdirectory and adding `extension_points` to `shopify.extension.toml`.
+
+## [Unreleased] - 2024-06-04
+
+### Fixed
+- Improved Judge.me review scraping in Ask Me Anything widget:
+  - Added robust waiting logic using MutationObserver and increased wait time (up to 20s) to capture reviews loaded asynchronously or after scroll.
+  - Enhanced logging for easier debugging and confirmation of review capture.
+  - Ensured up to 5 reviews are reliably extracted and sent to the AI context. 
