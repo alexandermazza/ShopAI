@@ -7,65 +7,96 @@
   # Collect all relevant product information into a single string or JSON object
   # Example: Basic details. Enhance this with metafields, variant info, etc.
   assign product_json_string = product | json
-  assign context_string = ''
-  assign context_string = context_string | append: 'Product Title: ' | append: product.title | append: '\n'
-  assign context_string = context_string | append: 'Product Description: ' | append: product.description | strip_html | append: '\n'
-  assign context_string = context_string | append: 'Vendor: ' | append: product.vendor | append: '\n'
-  assign context_string = context_string | append: 'Type: ' | append: product.type | append: '\n'
 
-  # Format prices first
-  assign price_min_formatted = product.price_min | money
-  assign price_max_formatted = product.price_max | money
-  assign context_string = context_string | append: 'Price Range: ' | append: price_min_formatted | append: ' - ' | append: price_max_formatted | append: '\n'
+  # --- Use capture for context string ---
+  capture captured_context
+    echo 'Product Title: ' | append: product.title | append: "\n"
+    echo 'Product Description: ' | append: product.description | strip_html | append: "\n"
+    echo 'Vendor: ' | append: product.vendor | append: "\n"
+    echo 'Type: ' | append: product.type | append: "\n"
 
-  if product.options_with_values.size > 0
-    assign context_string = context_string | append: 'Available Options:\n'
-    for option in product.options_with_values
-      # Join values first
-      assign joined_values = option.values | join: ', '
-      assign context_string = context_string | append: '- ' | append: option.name | append: ': ' | append: joined_values | append: '\n'
-    endfor
-  endif
+    assign price_min_formatted = product.price_min | money
+    assign price_max_formatted = product.price_max | money
+    echo 'Price Range: ' | append: price_min_formatted | append: ' - ' | append: price_max_formatted | append: "\n"
 
-  if product.variants.size > 0
-    assign context_string = context_string | append: 'Variants:\n'
-    for variant in product.variants
-      assign availability = ''
-      if variant.available
-        assign availability = 'Available'
-      else
-        assign availability = 'Sold Out'
-      endif
-      # Format variant price first
-      assign variant_price_formatted = variant.price | money
-      assign context_string = context_string | append: '- ' | append: variant.title | append: ' (' | append: variant_price_formatted | append: ') - ' | append: availability | append: '\n'
-    endfor
-  endif
+    if product.options_with_values.size > 0
+      echo 'Available Options:' | append: "\n"
+      for option in product.options_with_values
+        assign joined_values = option.values | join: ', '
+        echo '- ' | append: option.name | append: ': ' | append: joined_values | append: "\n"
+      endfor
+    endif
 
-  if product.tags.size > 0
-    # Join tags first
-    assign joined_tags = product.tags | join: ', '
-    assign context_string = context_string | append: 'Tags: ' | append: joined_tags | append: '\n'
-  endif
+    if product.variants.size > 0
+      echo 'Variants:' | append: "\n"
+      for variant in product.variants
+        assign availability = ''
+        if variant.available
+          assign availability = 'Available'
+        else
+          assign availability = 'Sold Out'
+        endif
+        assign variant_price_formatted = variant.price | money
+        echo '- ' | append: variant.title | append: ' (' | append: variant_price_formatted | append: ') - ' | append: availability | append: "\n"
+      endfor
+    endif
+
+    if product.tags.size > 0
+      assign joined_tags = product.tags | join: ', '
+      echo 'Tags: ' | append: joined_tags | append: "\n"
+    endif
+
+    # --- Add Judge.me Review Summary Metafields ---
+    assign avg_rating = product.metafields.reviews.rating.value
+    assign review_count = product.metafields.reviews.rating_count
+    assign rating_scale_max = product.metafields.reviews.rating.value.scale_max | default: 5.0
+
+    if review_count and review_count > 0
+      echo 'Average Customer Rating: ' | append: avg_rating | append: ' out of ' | append: rating_scale_max | append: ' stars (' | append: review_count | append: ' reviews)' | append: "\n"
+    elsif review_count == 0
+      echo 'Customer Reviews: No reviews yet.' | append: "\n"
+    endif
+
+    # --- Add Recent Reviews ---
+    if product.reviews.size > 0
+      echo 'Customer Reviews (Summary):' | append: "\n"
+      assign review_limit = 3
+      assign reviews_to_show = product.reviews | sort: 'created_at' | reverse | slice: 0, review_limit
+      for review in reviews_to_show
+        echo '- Rating: ' | append: review.rating | append: '/5' | append: "\n"
+        if review.content != blank
+          assign review_excerpt = review.content | strip_html | truncate: 150
+          echo '  Comment: ' | append: review_excerpt | append: "\n"
+        endif
+      endfor
+    endif
+  endcapture
+
+  assign context_string = captured_context
 
   # TODO: Consider adding image alt text, review content if available
 -%}
 
+{% if block.settings.enable_ask_me_anything %}
 <div id="ask-me-anything" class="ask-me-anything-container" data-product-context="{{ context_string | escape }}" {% if block.settings.search_border_color != blank %}style="--search-border-color-setting: {{ block.settings.search_border_color }};"{% endif %}>
-  <div class="search-wrapper">
-    <span class="search-icon">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path>
-      </svg>
-    </span>
-    <input
-      type="text"
-      placeholder="{{ block.settings.placeholder | default: 'Ask me anything' }}"
-      class="search-input"
-      aria-label="{{ block.settings.placeholder | default: 'Ask me anything' }} search"
-      maxlength="300"
-    >
-  </div>
+  <form class="ask-me-anything-form">
+    <div class="search-wrapper">
+      <span class="search-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path>
+        </svg>
+      </span>
+      <input
+        type="search"
+        placeholder="{{ block.settings.placeholder | default: 'Ask me anything' }}"
+        class="search-input"
+        aria-label="{{ block.settings.placeholder | default: 'Ask me anything' }} search"
+        maxlength="300"
+      >
+      <button type="button" class="clear-button hidden" aria-label="Clear search input">&times;</button>
+      <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Submit</button>
+    </div>
+  </form>
   <div class="response-area relative p-4 pb-8" aria-live="polite">
     <span class="ai-answer-content"><!-- AI response will be displayed here --></span>
     <div id="powered-by-attribution" class="text-gray-400 hidden">
@@ -77,6 +108,39 @@
 <script>
   // Pass product context to JS (Alternative: use data attribute as shown above)
   // const productContextForJs = {{ product_json_string }};
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Wait for a short period to allow review widgets to load
+    setTimeout(() => {
+      // Define selectors for different review apps
+      const reviewSelectors = [
+        '.jdgm-rev__body', // Judge.me
+        '.loox-review-content', // Loox
+        '.yotpo-review' // Yotpo
+      ];
+
+      let reviews = [];
+
+      // Check for each review selector
+      for (const selector of reviewSelectors) {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+          reviews = Array.from(elements).slice(0, 3).map(el => el.innerText);
+          break; // Stop checking once we find reviews
+        }
+      }
+
+      // Pass the reviews to the AI input
+      if (reviews.length > 0) {
+        console.log("Review snippets:", reviews);
+        // Here you would add the reviews to your AI input logic
+      } else {
+        console.log("No reviews found.");
+      }
+    }, 2000); // Adjust the timeout as needed
+  });
 </script>
 
 <style>
@@ -121,6 +185,7 @@
 .search-wrapper {
   display: flex;
   align-items: center;
+  position: relative; /* Add relative positioning for absolute children */
   padding: 4px; /* Increased padding for thicker border feel */
   border-radius: 9999px;
   /* Use the setting color if defined, otherwise use the default gradient */
@@ -154,6 +219,7 @@
   height: var(--input-height);
   box-sizing: border-box;
   line-height: normal;
+  padding-right: 5.5rem; /* Add padding to prevent text overlap with clear button */
 }
 
 .search-input::placeholder {
@@ -233,20 +299,89 @@
   bottom: 8px; /* Equivalent to Tailwind's bottom-2 */
   right: 12px; /* Equivalent to Tailwind's right-3 */
   font-size: 6px;
-  /* color: inherit; /* Inherit text-gray-400 from parent, or set explicitly */
+  color: #969696
 }
 
 /* Ensure it's hidden by default (JS controls visibility) */
 #powered-by-attribution.hidden {
   display: none;
 }
+
+/* Visually hidden class */
+.visually-hidden {
+  position: absolute !important;
+  height: 1px; width: 1px;
+  overflow: hidden;
+  clip: rect(1px, 1px, 1px, 1px);
+  white-space: nowrap; /* prevent line breaks */
+}
+
+/* Clear Button Styles */
+.clear-button {
+  position: absolute;
+  right: 3.5rem; /* Move the clear button slightly to the left */
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.15); /* Semi-transparent dark background */
+  color: rgba(255, 255, 255, 0.8); /* Semi-transparent white text */
+  border: none;
+  border-radius: 50%;
+  width: 2rem; /* Size */
+  height: 2rem; /* Size */
+  font-size: 1.6rem; /* Cross size */
+  line-height: 1.9rem; /* Center the cross vertically */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+  backdrop-filter: blur(3px); /* Glassy effect */
+  -webkit-backdrop-filter: blur(3px); /* Safari support */
+  z-index: 5; /* Ensure it's above the input visually */
+}
+
+/* Hide browser default cancel button for search input */
+.search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none !important;
+}
+
+/* For IE/Edge (older versions) */
+.search-input::-ms-clear {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.clear-button:hover,
+.clear-button:focus {
+  background-color: rgba(0, 0, 0, 0.25);
+  opacity: 1;
+  outline: none;
+}
+
+/* Utility to hide the button */
+.clear-button.hidden {
+  display: none;
+}
 </style>
+{% endif %}
+
 {% schema %}
 {
   "name": "Ask Me Anything",
   "target": "section",
-  "javascript": "ask-me-anything.js",
+  "javascript": "ask-me-anything.min.js",
   "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_ask_me_anything",
+      "label": "Enable Ask Me Anything",
+      "default": true,
+      "info": "Uncheck this to hide the block if the ShopAI app is not active or configured."
+    },
     {
       "type": "text",
       "id": "placeholder",

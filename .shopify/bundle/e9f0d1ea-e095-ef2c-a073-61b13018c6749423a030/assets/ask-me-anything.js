@@ -28,6 +28,18 @@ const AskMeAnything = {
     }
     console.log('AskMeAnything: Found elements and context.');
 
+    const form = containerElement.querySelector('.ask-me-anything-form');
+
+    if (!form) {
+      console.error('AskMeAnything: Missing form element.');
+      if (responseArea) {
+          responseArea.textContent = 'Error: Form element missing.';
+          responseArea.style.display = 'block';
+          responseArea.className = 'response-area error';
+      }
+      return;
+    }
+
     // Add focus effects
     searchInput.addEventListener('focus', () => {
       searchInput.closest('.search-wrapper').style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
@@ -44,8 +56,7 @@ const AskMeAnything = {
     });
 
     // Handle form submission
-    searchInput.addEventListener('keypress', async (e) => {
-      if (e.key === 'Enter') {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const query = searchInput.value.trim();
         if (!query) {
@@ -129,7 +140,6 @@ const AskMeAnything = {
            searchInput.disabled = false;
            searchInput.focus();
         }
-      }
     });
   }
 };
