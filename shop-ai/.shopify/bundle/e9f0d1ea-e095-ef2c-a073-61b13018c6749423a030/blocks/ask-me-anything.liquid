@@ -92,6 +92,7 @@
         class="search-input"
         aria-label="{{ block.settings.placeholder | default: 'Ask me anything' }} search"
         maxlength="300"
+        enterkeyhint="search"
       >
       <button type="button" class="clear-button hidden" aria-label="Clear search input">&times;</button>
       <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Submit</button>
@@ -373,7 +374,7 @@
 {
   "name": "Ask Me Anything",
   "target": "section",
-  "javascript": "ask-me-anything.js",
+  "javascript": "ask-me-anything.min.js",
   "settings": [
     {
       "type": "checkbox",

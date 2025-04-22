@@ -2,6 +2,9 @@
 
 ShopAI is a Shopify Theme App Extension that adds an "Ask Me Anything" search bar to your product pages. Customers can ask questions about the product, and the app uses the OpenAI API to provide answers based on the product's description and details.
 
+<img width="593" alt="image" src="https://github.com/user-attachments/assets/6adb16d2-efe4-4e37-ad92-2d62862a7887" />
+
+
 ## Features
 
 *   **"Ask Me Anything" Search Bar:** Allows customers to ask natural language questions about products directly on the product page.
@@ -17,50 +20,6 @@ ShopAI is a Shopify Theme App Extension that adds an "Ask Me Anything" search ba
 *   **AI:** OpenAI API (gpt-3.5-turbo)
 *   **Database:** Prisma with SQLite (for session storage)
 
-## Prerequisites
-
-*   Node.js (v18.20, v20.10, or >=21.0.0)
-*   npm or yarn
-*   Shopify CLI
-*   A Shopify Partner Account and a development store
-*   An OpenAI API Key
-
-## Setup and Installation
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/alexandermazza/Shop-AI.git
-    cd ShopAI
-    ```
-
-2.  **Install dependencies:**
-    Navigate into the app directory and install packages:
-    ```bash
-    cd shop-ai
-    npm install
-    ```
-
-3.  **Environment Variables:**
-    *   Create a `.env` file in the `shop-ai` directory: `shop-ai/.env`
-    *   Add your Shopify App API Key/Secret and your OpenAI API Key:
-        ```dotenv
-        SHOPIFY_API_KEY=your_shopify_api_key
-        SHOPIFY_API_SECRET=your_shopify_api_secret
-        OPENAI_API_KEY=your_openai_api_key
-        # SCOPES can be adjusted as needed, e.g., SCOPES=write_products,read_products
-        SCOPES=write_products
-        # SHOPIFY_APP_URL will likely be provided by the dev server (Cloudflare tunnel)
-        # SHOPIFY_APP_URL=https://your-tunnel-url.trycloudflare.com
-        ```
-    *   *Note:* The `.env` file is already in `.gitignore` to prevent accidental commits.
-
-4.  **Run the Development Server:**
-    Make sure you are in the `shop-ai` directory.
-    ```bash
-    cd /Users/alexmazza/Documents/projects/ShopAI/shop-ai # Or navigate if not already there
-    shopify app dev
-    ```
-    Follow the prompts from the Shopify CLI (select partner org, development store, etc.). This will start the Remix server and the Shopify tunnel.
 
 ## Usage
 

@@ -132,96 +132,103 @@ const AskMeAnything = {
     }
     console.log('AskMeAnything: Found elements and context.');
 
-    // Handle form submission
-    searchInput.addEventListener('keypress', async (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const query = searchInput.value.trim();
-        if (!query) {
-           return;
-        }
+    const form = containerElement.querySelector('form.ask-me-anything-form');
+    // Remove keypress handler and use form submit instead
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = searchInput.value.trim();
+      if (!query) {
+        return;
+      }
 
-        // --- Scrape review content just before sending ---
-        const scrapedReviews = await this.scrapeReviewContent(); // Now async
-        const combinedContext = `${productContext}\n${scrapedReviews}`;
+      // --- Scrape review content just before sending ---
+      const scrapedReviews = await this.scrapeReviewContent();
+      const combinedContext = `${productContext}\n${scrapedReviews}`;
 
-        // --- Show Loading State ---
-        answerContentElement.textContent = 'Thinking...';
-        responseArea.classList.remove('error');
-        responseArea.classList.add('loading');
-        responseArea.classList.add('visible');
-        attributionElement.classList.add('hidden');
-        searchInput.disabled = true;
+      // --- Show Loading State & Clear Previous Answer ---
+      answerContentElement.textContent = ''; // Clear previous answer immediately
+      responseArea.classList.remove('error');
+      responseArea.classList.add('loading'); // Keep loading state for now
+      responseArea.classList.add('visible');
+      attributionElement.classList.add('hidden');
+      searchInput.disabled = true;
 
-        // Use the App Proxy path
-        const apiUrl = '/apps/proxy/resource-openai'; 
-        console.log(`AskMeAnything: Calling API via App Proxy: ${apiUrl}`); 
+      // Use the App Proxy path
+      const apiUrl = '/apps/proxy/resource-openai';
+      console.log(`AskMeAnything: Calling API via App Proxy (streaming): ${apiUrl}`);
 
-        try {
-          // --- Call Backend API ---
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              question: query,
-              productContext: combinedContext, // Send combined context
-            }),
-          });
+      try {
+        // --- Call Backend API ---
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            question: query,
+            productContext: combinedContext,
+          }),
+        });
 
-          // --- Check Response Status BEFORE Parsing JSON ---
-          if (!response.ok) {
-            let errorMessage = `API Error: ${response.status} ${response.statusText}`;
-            // Check if the error response is HTML (likely a server error page)
-            if (response.headers.get('content-type')?.includes('text/html')) {
-              errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
-              console.error("Received HTML error page from App Proxy.");
+        // --- Check Response Status ---
+        if (!response.ok) {
+          // Attempt to read error message from the streamed body if possible
+          let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+          try {
+            const errorText = await response.text(); // Read body as text
+            // Simple check if it's likely our streamed error format
+            if (errorText.startsWith('Error:')) {
+                errorMessage = errorText;
+            } else if (response.headers.get('content-type')?.includes('text/html')) {
+                 errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
+                 console.error("Received HTML error page from App Proxy.");
             } else {
-              // Try to parse as JSON in case the error response IS JSON
-              try {
-                const errorResult = await response.json();
-                errorMessage = errorResult.error || errorMessage;
-                console.error('AskMeAnything: API Error (JSON Response):', errorResult);
-              } catch (parseError) {
-                 // Only log parse error if we didn't already identify it as HTML
-                 if (!response.headers.get('content-type')?.includes('text/html')) {
-                    console.error('AskMeAnything: Failed to parse non-HTML error response body:', parseError);
-                 }
-                 // Keep the original errorMessage based on status
-              }
+                 // If not HTML and not our specific error format, use the status text
+                 console.warn("Received non-HTML, non-standard error response body:", errorText);
             }
-            // Throw an error to be caught by the catch block below
-            throw new Error(errorMessage);
+          } catch (readError) {
+            console.error('AskMeAnything: Failed to read error response body:', readError);
+            // Keep the original errorMessage based on status
           }
-
-          // --- If response.ok, Parse JSON and Display Result ---
-          const result = await response.json();
-
-          if (result.error) {
-             console.error('AskMeAnything: API Error (JSON Payload):', result);
-             // Throw error to be caught below
-             throw new Error(result.error);
-          } else {
-             console.log('AskMeAnything: API Success, displaying answer.');
-             answerContentElement.textContent = result.answer;
-             responseArea.classList.remove('loading', 'error');
-             responseArea.classList.add('visible');
-             attributionElement.classList.remove('hidden');
-          }
-
-        } catch (error) {
-           console.error('AskMeAnything: Error during fetch or processing:', error);
-           // Display the error message (could be from thrown Error or network/parse error)
-           answerContentElement.textContent = `Error: ${error.message || 'An unexpected error occurred.'}`;
-           responseArea.classList.remove('loading');
-           responseArea.classList.add('error', 'visible');
-           attributionElement.classList.remove('hidden');
-        } finally {
-           console.log('AskMeAnything: Re-enabling input.');
-           searchInput.disabled = false;
-           searchInput.focus();
+          throw new Error(errorMessage);
         }
+
+        // --- Handle Streamed Response --- 
+        if (!response.body) {
+          throw new Error("Response body is null, cannot read stream.");
+        }
+
+        console.log('AskMeAnything: Receiving streamed response...');
+        answerContentElement.textContent = ''; // Ensure it's clear before streaming starts
+        responseArea.classList.remove('loading'); // Remove loading once stream starts
+
+        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            console.log('AskMeAnything: Stream finished.');
+            break;
+          }
+          // Append the chunk to the answer content
+          answerContentElement.textContent += value;
+          // Optional: Scroll to bottom if content overflows
+          // responseArea.scrollTop = responseArea.scrollHeight;
+        }
+        
+        // Final state after successful streaming
+        responseArea.classList.add('visible'); 
+        attributionElement.classList.remove('hidden');
+
+      } catch (error) {
+        console.error('AskMeAnything: Error during fetch or streaming:', error);
+        answerContentElement.textContent = `Error: ${error.message || 'An unexpected error occurred.'}`;
+        responseArea.classList.remove('loading');
+        responseArea.classList.add('error', 'visible');
+        attributionElement.classList.remove('hidden'); 
+      } finally {
+        console.log('AskMeAnything: Re-enabling input.');
+        searchInput.disabled = false;
+        searchInput.focus();
       }
     });
   }
