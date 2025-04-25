@@ -155,6 +155,7 @@ const AskMeAnything = {
 
       // Use the App Proxy path
       const apiUrl = '/apps/proxy/resource-openai';
+      const language = containerElement.getAttribute('data-language') || 'en';
       console.log(`AskMeAnything: Calling API via App Proxy (streaming): ${apiUrl}`);
 
       try {
@@ -167,6 +168,7 @@ const AskMeAnything = {
           body: JSON.stringify({
             question: query,
             productContext: combinedContext,
+            language, // send selected language
           }),
         });
 

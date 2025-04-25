@@ -19,7 +19,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    const { question, productContext } = await request.json();
+    const { question, productContext, language } = await request.json();
     
     if (!question || !productContext) {
       return json({ error: "Missing question or product context" }, { status: 400 });
@@ -45,25 +45,38 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "OpenAI API key not configured" }, { status: 500 });
     }
 
+    // Map language codes to language names
+    const languageMap: Record<string, string> = {
+      en: "English",
+      fr: "French",
+      de: "German",
+      es: "Spanish",
+      it: "Italian",
+      zh: "Chinese",
+      hi: "Hindi",
+      ko: "Korean"
+    };
+    const languageName = languageMap[language] || "English";
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ 
         role: "user", 
-        content: `
-          You are a friendly and helpful product assistant for our online store.
-          Your goal is to answer the user's question accurately using *only* the product information provided below. Do not make assumptions or use external knowledge.
-          
-          <product_information>
-          ${productContext}
-          </product_information>
-          
-          User Question: ${question}
-          
-          If the answer is clearly stated in the product information, provide it concisely.
-          If the answer cannot be found in the provided information, respond with: "I'm sorry, but I don't have the specific details to answer that based on the product information available."
-          
-          Answer:
-        `
+        content: `Please answer in ${languageName}.
+
+You are a friendly and helpful product assistant for our online store.
+Your goal is to answer the user's question accurately using *only* the product information provided below. Do not make assumptions or use external knowledge.
+
+<product_information>
+${productContext}
+</product_information>
+
+User Question: ${question}
+
+If the answer is clearly stated in the product information, provide it concisely.
+If the answer cannot be found in the provided information, respond with: "I'm sorry, but I don't have the specific details to answer that based on the product information available."
+
+Answer:`
       }],
       temperature: 0.3,
       max_tokens: 150,

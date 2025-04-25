@@ -151,4 +151,22 @@ All notable changes to this project will be documented in this file.
 - Improved Judge.me review scraping in Ask Me Anything widget:
   - Added robust waiting logic using MutationObserver and increased wait time (up to 20s) to capture reviews loaded asynchronously or after scroll.
   - Enhanced logging for easier debugging and confirmation of review capture.
-  - Ensured up to 5 reviews are reliably extracted and sent to the AI context. 
+  - Ensured up to 5 reviews are reliably extracted and sent to the AI context.
+
+## [Unreleased] - 2024-06-05
+
+### Added
+- **AI Review Summary Block:**
+  - Created a new Shopify block (`review-summary.liquid`) to display an AI-generated summary of product reviews.
+  - Implemented review scraping logic (`review-summary.js`) similar to the Ask Me Anything block, which triggers the summary generation.
+  - Added a dedicated backend resource route (`api.resource-review-summary.tsx`) to handle summarization requests using OpenAI (`gpt-4o-mini`) via the Vercel AI SDK (`streamText`).
+  - Designed the block to be hidden if no reviews are found on the page.
+  - Included styling for the block header (title and icon) with a gradient effect, and a styled response area with loading/error states.
+
+### Changed
+- Minified `review-summary.js` using `terser` to `review-summary.min.js` to resolve linter file size warnings.
+- Updated `review-summary.liquid` schema to reference the minified JavaScript file.
+
+### Fixed
+- Resolved Shopify linter error "The schema does not exist" in `review-summary.liquid` by removing the unnecessary `"target": "section"` property from the schema definition.
+- Reduced source file size of `review-summary.js` by commenting out non-essential `console.log` statements to address linter file size warnings. 

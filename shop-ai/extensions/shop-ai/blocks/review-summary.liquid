@@ -1,0 +1,183 @@
+{% comment %}
+  Review Summary Block using AI
+{% endcomment %}
+
+{% if block.settings.enable_review_summary %}
+<div id="review-summary-block" class="review-summary-container" style="display: none;"> {# Initially hidden, JS will show it #}
+  <div class="review-summary-header">
+    <span class="summary-icon">
+      {% comment %} Re-use the sparkle icon from ask-me-anything {% endcomment %}
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path>
+      </svg>
+    </span>
+    <h3 class="summary-title">{{ block.settings.title | default: 'Customers are saying...' }}</h3>
+  </div>
+  <div class="summary-response-area relative p-4 pb-8" aria-live="polite">
+     <span class="ai-summary-content"><!-- AI summary will be displayed here --></span>
+     <div class="summary-attribution text-gray-400 hidden">
+       Powered by ShopAI
+     </div>
+  </div>
+</div>
+
+<style>
+/* Define the gradient and animations */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 15px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+:root {
+  /* Reuse variables where possible, maybe define specific ones if needed */
+  --ai-gradient: linear-gradient(90deg, #AF52DE, #007AFF, #AF52DE, #FF2D55, #FF9500);
+  --shimmer-gradient: linear-gradient(90deg, #f0f0f0, #cccccc, #f0f0f0); /* Slightly adjusted contrast */
+  --summary-response-font-size: 1.5rem;
+  --summary-title-font-size: 1.8rem;
+  --text-color: #374151;
+  --response-bg: rgba(249, 250, 251, 0.8); /* Slightly different bg for distinction */
+  --response-border-color: rgba(229, 231, 235, 0.6);
+}
+
+.review-summary-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 1.5rem 1rem;
+  opacity: 0; /* Start hidden for animation */
+  transform: translate3d(0, 15px, 0); /* Start slightly lower for animation */
+}
+
+.review-summary-container.visible {
+  display: block !important; /* Override initial display: none */
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+.review-summary-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.summary-icon,
+.summary-title {
+  background: var(--ai-gradient);
+  background-size: 200% auto; /* Ensure gradient covers */
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent; /* Make text transparent to show gradient */
+  animation: shimmer 3s linear infinite; /* Slower shimmer */
+}
+
+.summary-icon {
+  margin-right: 0.8rem;
+  flex-shrink: 0;
+  display: inline-block; /* Needed for background-clip: text on SVG */
+  color: #AF52DE; /* Fallback color if gradient fails */
+}
+.summary-icon svg {
+  display: block; /* Prevent extra space below SVG */
+  stroke: url(#gradient); /* Attempt SVG gradient */
+}
+
+/* Define gradient for SVG stroke */
+/* This might not work directly, styling SVG with CSS gradient is tricky.
+   Keeping the text-clip approach for the container span is more reliable. */
+/* Alternatively, apply gradient to parent span and let SVG inherit color: transparent */
+
+
+.summary-title {
+  font-size: var(--summary-title-font-size);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.summary-response-area {
+  border-radius: 12px;
+  background-color: var(--response-bg);
+  border: 1px solid var(--response-border-color);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--summary-response-font-size);
+  line-height: 1.6;
+  min-height: 50px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0; /* Hidden until content loads */
+  transform: translate3d(0, 10px, 0);
+}
+
+.review-summary-container.loaded .summary-response-area {
+   animation: fadeInUp 0.5s 0.1s ease forwards; /* Delay slightly */
+}
+
+.summary-response-area.loading {
+  background: var(--shimmer-gradient);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 1.5s linear infinite, fadeInUp 0.5s ease forwards;
+  opacity: 1; /* Show loading state */
+}
+
+.summary-response-area.error {
+  color: #dc2626;
+  font-weight: 500;
+  font-size: calc(var(--summary-response-font-size) * 0.95);
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: #dc2626;
+  animation: none;
+  opacity: 1; /* Show error state */
+  transform: none; /* Reset transform */
+}
+
+/* Attribution styling */
+.summary-attribution {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 6px;
+  color: #969696;
+}
+
+.summary-attribution.hidden {
+  display: none;
+}
+</style>
+{% endif %}
+
+{% schema %}
+{
+  "name": "AI Review Summary",
+  "javascript": "review-summary.min.js",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_review_summary",
+      "label": "Enable AI Review Summary",
+      "default": true,
+      "info": "Displays an AI-generated summary of product reviews if available."
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Block Title",
+      "default": "Customers are saying..."
+    }
+  ]
+}
+{% endschema %} 
