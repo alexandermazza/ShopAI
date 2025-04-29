@@ -78,7 +78,13 @@
 -%}
 
 {% if block.settings.enable_ask_me_anything %}
-<div id="ask-me-anything" class="ask-me-anything-container" data-product-context="{{ context_string | escape }}" {% if block.settings.search_border_color != blank %}style="--search-border-color-setting: {{ block.settings.search_border_color }};"{% endif %} data-language="{{ block.settings.language }}">
+<div id="ask-me-anything"
+     class="ask-me-anything-container"
+     data-product-context="{{ context_string | escape }}"
+     data-product-id="{{ product.id }}"
+     data-product-url="{{ shop.url }}{{ product.url }}"
+     {% if block.settings.search_border_color != blank %}style="--search-border-color-setting: {{ block.settings.search_border_color }};"{% endif %}
+     data-language="{{ block.settings.language }}">
   <form class="ask-me-anything-form">
     <div class="search-wrapper">
       <span class="search-icon">
@@ -113,39 +119,6 @@
 <script>
   // Pass product context to JS (Alternative: use data attribute as shown above)
   // const productContextForJs = {{ product_json_string }};
-</script>
-
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    // Wait for a short period to allow review widgets to load
-    setTimeout(() => {
-      // Define selectors for different review apps
-      const reviewSelectors = [
-        '.jdgm-rev__body', // Judge.me
-        '.loox-review-content', // Loox
-        '.yotpo-review' // Yotpo
-      ];
-
-      let reviews = [];
-
-      // Check for each review selector
-      for (const selector of reviewSelectors) {
-        const elements = document.querySelectorAll(selector);
-        if (elements.length > 0) {
-          reviews = Array.from(elements).slice(0, 3).map(el => el.innerText);
-          break; // Stop checking once we find reviews
-        }
-      }
-
-      // Pass the reviews to the AI input
-      if (reviews.length > 0) {
-        console.log("Review snippets:", reviews);
-        // Here you would add the reviews to your AI input logic
-      } else {
-        console.log("No reviews found.");
-      }
-    }, 2000); // Adjust the timeout as needed
-  });
 </script>
 
 <style>
@@ -376,7 +349,7 @@
 
 {% schema %}
 {
-  "name": "Ask Me Anything",
+  "name": "ShopAI - AI Search",
   "target": "section",
   "javascript": "ask-me-anything.min.js",
   "settings": [

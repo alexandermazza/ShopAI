@@ -103,6 +103,100 @@ const AskMeAnything = {
     return reviewText;
   },
 
+  // --- Helper to fetch reviews from Judge.me API ---
+  async fetchJudgeMeReviews(productId, productUrl) {
+    console.log(`AskMeAnything: Fetching ALL Judge.me reviews via API for product ${productId}`);
+    if (!productId || !productUrl) {
+      console.error("AskMeAnything: Missing productId or productUrl for API call.");
+      return "\nCustomer Reviews: Could not fetch reviews (missing product info).\n";
+    }
+
+    const apiUrlBase = 'https://judge.me/api/v1/reviews'; // Use the v1 API endpoint
+    const shopDomain = window.location.hostname; // Get shop domain dynamically
+    const perPage = 5; // Fetch 5 reviews per page
+    let allReviews = [];
+    let currentPage = 1;
+    let totalReviewsFetched = 0;
+    let reviewsText = '\nCustomer Reviews:\n';
+
+    try {
+      // Loop indefinitely until explicitly broken
+      while (true) {
+        // Construct the API URL for the v1 endpoint
+        const apiUrl = `${apiUrlBase}?api_token=${window.Shopify?.shop}&shop_domain=${shopDomain}&handle=${productUrl.split('/').pop()}&per_page=${perPage}&page=${currentPage}`;
+        // Note: Judge.me API v1 might require api_token and shop_domain. If this doesn't work,
+        // we might need to adjust authentication or fall back to the widget endpoint if it's still accessible.
+        // The original request mentioned 'reviews_for_widget', which might be different.
+        // Let's try the documented v1 endpoint first.
+
+        console.log(`AskMeAnything: Fetching page ${currentPage} from ${apiUrl}`);
+
+        const response = await fetch(apiUrl);
+
+        if (!response.ok) {
+          console.error(`AskMeAnything: Judge.me API request failed with status ${response.status}`);
+          // Try to get error message if available
+          let errorMsg = `API Error (${response.status})`;
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.message || errorMsg;
+          } catch (e) { /* Ignore if response is not JSON */ }
+          reviewsText += ` - Error fetching reviews: ${errorMsg}\n`;
+          break; // Stop fetching on error
+        }
+
+        const data = await response.json();
+
+        // --- Parse V1 API Response --- 
+        if (!data.reviews || data.reviews.length === 0) {
+           console.log(`AskMeAnything: No more reviews found on page ${currentPage}. Stopping fetch.`);
+           break; // Exit loop if no reviews are returned
+        }
+
+        data.reviews.forEach(review => {
+            const rating = review.rating || '?';
+            const title = review.title || '';
+            const body = review.body || 'No comment';
+            const author = review.reviewer?.name || 'Anonymous'; // Adjust based on actual API response structure
+            
+            allReviews.push({
+                rating,
+                author,
+                title,
+                body
+            });
+            totalReviewsFetched++;
+        });
+
+        console.log(`AskMeAnything: Fetched ${data.reviews.length} reviews from page ${currentPage}. Total fetched: ${totalReviewsFetched}`);
+
+        currentPage++;
+
+        // Add a polite delay between requests
+        await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay
+      }
+
+    } catch (error) {
+      console.error('AskMeAnything: Error fetching or processing Judge.me API reviews:', error);
+      reviewsText += ' - Error fetching reviews. Please try again later.\n';
+      // Return immediately with error message if fetch itself fails
+      return reviewsText;
+    }
+
+    // --- Format the fetched reviews --- 
+    if (allReviews.length === 0) {
+      console.log("AskMeAnything: No reviews fetched from the API.");
+      return "\nCustomer Reviews: No reviews found.\n";
+    }
+
+    allReviews.forEach((r, i) => {
+      reviewsText += `- Review ${i + 1}: Rating: ${r.rating}/5. ${r.author ? 'By: ' + r.author + '. ' : ''}${r.title ? 'Title: \"' + r.title + '\". ' : ''}Comment: "${r.body}"\n`;
+    });
+
+    console.log(`AskMeAnything: Successfully formatted ${allReviews.length} reviews from API.`);
+    return reviewsText;
+  },
+
   onMount(containerElement = document) {
     console.log('AskMeAnything: onMount called for container:', containerElement);
     if (!containerElement || containerElement.id !== 'ask-me-anything') {
@@ -115,14 +209,18 @@ const AskMeAnything = {
     const answerContentElement = responseArea?.querySelector('.ai-answer-content');
     const attributionElement = responseArea?.querySelector('#powered-by-attribution');
     const productContext = containerElement.dataset.productContext;
+    const productId = containerElement.dataset.productId;
+    const productUrl = containerElement.dataset.productUrl;
 
-    if (!searchInput || !responseArea || !answerContentElement || !attributionElement || !productContext) {
-      console.error('AskMeAnything: Missing required elements or product context.');
+    if (!searchInput || !responseArea || !answerContentElement || !attributionElement || !productContext || !productId || !productUrl) {
+      console.error('AskMeAnything: Missing required elements, product context, ID, or URL.');
       if(!searchInput) console.error('>>> searchInput missing');
       if(!responseArea) console.error('>>> responseArea missing');
       if(!answerContentElement) console.error('>>> answerContentElement missing');
       if(!attributionElement) console.error('>>> attributionElement missing');
       if(!productContext) console.error('>>> productContext missing');
+      if(!productId) console.error('>>> productId missing');
+      if(!productUrl) console.error('>>> productUrl missing');
       if (responseArea) {
           responseArea.textContent = 'Error: Could not initialize component.';
           responseArea.style.display = 'block';
@@ -141,9 +239,9 @@ const AskMeAnything = {
         return;
       }
 
-      // --- Scrape review content just before sending ---
-      const scrapedReviews = await this.scrapeReviewContent();
-      const combinedContext = `${productContext}\n${scrapedReviews}`;
+      // --- Fetch review content from Judge.me API --- 
+      const fetchedReviews = await this.fetchJudgeMeReviews(productId, productUrl);
+      const combinedContext = `${productContext}\n${fetchedReviews}`;
 
       // --- Show Loading State & Clear Previous Answer ---
       answerContentElement.textContent = ''; // Clear previous answer immediately

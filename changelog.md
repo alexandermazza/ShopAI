@@ -169,4 +169,33 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Resolved Shopify linter error "The schema does not exist" in `review-summary.liquid` by removing the unnecessary `"target": "section"` property from the schema definition.
+- Reduced source file size of `review-summary.js` by commenting out non-essential `console.log` statements to address linter file size warnings.
+
+### Removed
+- Removed default star rating component provided by Shopify CLI template.
+
+### Security
+- Implemented secure storage of OpenAI API key using environment variables.
+- Ensured `.env` file is properly gitignored.
+
+## [Unreleased] - 2024-06-05
+
+### Added
+- Updated AskMeAnything component styles for better alignment and visual appeal.
+- Added basic loading and error states to AskMeAnything component.
+- Implemented fetching and displaying AI-generated answers in AskMeAnything.
+- Integrated review scraping (DOM-based) into AskMeAnything context.
+- Added language selection to AskMeAnything and passed it to the backend.
+- Refactored AskMeAnything JS for robustness using Shopify section events.
+- Added Review Summary block with basic structure and styling.
+- Implemented AI review summary fetching and display logic.
+- Refined styling for Review Summary block (loading, error, attribution).
+- Switched AskMeAnything review scraping from DOM to Judge.me API.
+
+### Changed
+- Minified `review-summary.js` using `terser` to `review-summary.min.js` to resolve linter file size warnings.
+- Updated `review-summary.liquid` schema to reference the minified JavaScript file.
+
+### Fixed
+- Resolved Shopify linter error "The schema does not exist" in `review-summary.liquid` by removing the unnecessary `"target": "section"` property from the schema definition.
 - Reduced source file size of `review-summary.js` by commenting out non-essential `console.log` statements to address linter file size warnings. 

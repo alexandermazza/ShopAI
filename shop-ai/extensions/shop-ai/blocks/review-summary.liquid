@@ -3,17 +3,25 @@
 {% endcomment %}
 
 {% if block.settings.enable_review_summary %}
-<div id="review-summary-block" class="review-summary-container" style="display: none;"> {# Initially hidden, JS will show it #}
+<div id="review-summary-block" class="review-summary-container" style="display: none;">
   <div class="review-summary-header">
     <span class="summary-icon">
-      {% comment %} Re-use the sparkle icon from ask-me-anything {% endcomment %}
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#ai-gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <defs>
+          <linearGradient id="ai-gradient" x1="0" y1="0" x2="24" y2="0" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#AF52DE"/>
+            <stop offset="0.33" stop-color="#007AFF"/>
+            <stop offset="0.66" stop-color="#AF52DE"/>
+            <stop offset="0.85" stop-color="#FF2D55"/>
+            <stop offset="1" stop-color="#FF9500"/>
+          </linearGradient>
+        </defs>
         <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path>
       </svg>
     </span>
     <h3 class="summary-title">{{ block.settings.title | default: 'Customers are saying...' }}</h3>
   </div>
-  <div class="summary-response-area relative p-4 pb-8" aria-live="polite">
+  <div class="summary-response-area relative p-6 pb-10" aria-live="polite">
      <span class="ai-summary-content"><!-- AI summary will be displayed here --></span>
      <div class="summary-attribution text-gray-400 hidden">
        Powered by ShopAI
@@ -72,29 +80,21 @@
 .summary-icon,
 .summary-title {
   background: var(--ai-gradient);
-  background-size: 200% auto; /* Ensure gradient covers */
+  background-size: 100% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent; /* Make text transparent to show gradient */
-  animation: shimmer 3s linear infinite; /* Slower shimmer */
 }
 
 .summary-icon {
   margin-right: 0.8rem;
   flex-shrink: 0;
   display: inline-block; /* Needed for background-clip: text on SVG */
-  color: #AF52DE; /* Fallback color if gradient fails */
 }
 .summary-icon svg {
   display: block; /* Prevent extra space below SVG */
-  stroke: url(#gradient); /* Attempt SVG gradient */
+  stroke: url(#ai-gradient); /* Attempt SVG gradient */
 }
-
-/* Define gradient for SVG stroke */
-/* This might not work directly, styling SVG with CSS gradient is tricky.
-   Keeping the text-clip approach for the container span is more reliable. */
-/* Alternatively, apply gradient to parent span and let SVG inherit color: transparent */
-
 
 .summary-title {
   font-size: var(--summary-title-font-size);
@@ -162,7 +162,8 @@
 
 {% schema %}
 {
-  "name": "AI Review Summary",
+  "name": "ShopAI - Summarizer",
+  "target": "section",
   "javascript": "review-summary.min.js",
   "settings": [
     {

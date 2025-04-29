@@ -110,6 +110,8 @@ const ReviewSummary = {
     // --- Scrape review content --- 
     const scrapedReviews = await this.scrapeReviewContent();
 
+    console.log("ReviewSummary: scrapedReviews to send:", scrapedReviews);
+
     if (!scrapedReviews) {
         // console.log('ReviewSummary: No reviews found, hiding block.');
         containerElement.style.display = 'none'; // Keep block hidden
@@ -139,49 +141,63 @@ const ReviewSummary = {
         }),
       });
 
-      // --- Check Response Status ---
+      // --- Check Response Status --- 
+      console.log(`>>> ReviewSummary: Response status: ${response.status}, ok: ${response.ok}`); // Log status
       if (!response.ok) {
-        let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+        let errorMessage = `API Error: ${response.status} ${response.statusText}`; 
         try {
-          const errorText = await response.text();
-          if (errorText.startsWith('Error:')) {
-              errorMessage = errorText;
-          } else if (response.headers.get('content-type')?.includes('text/html')) {
-               errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
-               console.error("ReviewSummary: Received HTML error page from App Proxy."); // Keep critical error
-          } else {
-               console.warn("ReviewSummary: Received non-HTML, non-standard error response body:", errorText); // Keep warning
-          }
-        } catch (readError) {
-          console.error('ReviewSummary: Failed to read error response body:', readError); // Keep critical error
+          const errorJson = await response.json(); // Try to parse error JSON
+          errorMessage = errorJson.error || errorJson.details || errorJson.message || errorMessage;
+        } catch (e) {
+            try {
+              const errorText = await response.text(); // Fallback to text
+              if (errorText.startsWith('Error:')) {
+                  errorMessage = errorText;
+              } else if (response.headers.get('content-type')?.includes('text/html')) {
+                  errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
+                  console.error("ReviewSummary: Received HTML error page from App Proxy.");
+              } else {
+                  console.warn("ReviewSummary: Received non-JSON, non-standard error response body:", errorText);
+              }
+            } catch (readError) {
+               console.error('ReviewSummary: Failed to read error response body:', readError); // Keep critical error
+            }
         }
         throw new Error(errorMessage);
       }
 
-      // --- Handle Streamed Response --- 
-      if (!response.body) {
-        throw new Error("Response body is null, cannot read stream.");
-      }
+      // --- Handle NON-STREAMED JSON Response --- 
+      console.log(">>> ReviewSummary: Receiving non-streamed JSON response...");
+      summaryContentElement.textContent = ''; // Ensure clear
+      responseArea.classList.remove('loading'); // Remove loading state
+      containerElement.classList.add('loaded'); // Add class to trigger fade-in
 
-      // console.log('ReviewSummary: Receiving streamed summary response...');
-      summaryContentElement.textContent = ''; // Ensure clear before streaming
-      responseArea.classList.remove('loading'); // Remove loading once stream starts
-      containerElement.classList.add('loaded'); // Add class to trigger fade-in of content area
-
-      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          // console.log('ReviewSummary: Stream finished.');
-          break;
+      let summaryText = "Sorry, could not parse the summary."; // Default error
+      try {
+        const data = await response.json();
+        console.log(">>> ReviewSummary: Received JSON data:", data);
+        if (data && data.summary) {
+           summaryText = data.summary;
+        } else {
+           console.error(">>> ReviewSummary: JSON response missing 'summary' property.");
+           summaryText = data.error || summaryText; // Use error from JSON if available
+           responseArea.classList.add('error');
         }
-        summaryContentElement.textContent += value; // Append summary chunk
+      } catch (parseError) {
+         console.error(">>> ReviewSummary: Error parsing JSON response:", parseError);
+         responseArea.classList.add('error');
       }
 
-      attributionElement.classList.remove('hidden'); // Show attribution after success
+      summaryContentElement.textContent = summaryText;
+      if (!responseArea.classList.contains('error')) {
+          attributionElement.classList.remove('hidden');
+      } else {
+          attributionElement.classList.add('hidden'); // Hide attribution on error
+      }
 
-    } catch (error) {
-      console.error('ReviewSummary: Error during fetch or streaming:', error); // Keep critical error
+    } catch (error) { // Catches fetch errors, response.ok=false etc.
+      console.log(">>> ReviewSummary: CATCH BLOCK ENTERED <<<");
+      console.error('ReviewSummary: Error during fetch setup or initial response handling:', error); // Keep critical error
       summaryContentElement.textContent = `Error: ${error.message || 'Could not load summary.'}`;
       responseArea.classList.remove('loading');
       responseArea.classList.add('error');

@@ -39,3 +39,10 @@ embedded = false
 url = "https://shop-ai.fly.dev:3000"
 subpath = "proxy"
 prefix = "apps"
+
+# Theme App Extension Configuration
+[extensions.theme]
+type = "theme"
+name = "ShopAI Theme Extension"
+handle = "shopai-theme-extension"
+path = "extensions/shop-ai"
