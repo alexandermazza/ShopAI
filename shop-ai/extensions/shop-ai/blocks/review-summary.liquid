@@ -103,19 +103,22 @@
 }
 
 .summary-response-area {
-  border-radius: 12px;
+  border-radius: 16px;
   background-color: var(--response-bg);
   border: 1px solid var(--response-border-color);
   color: var(--text-color);
   font-family: inherit;
   font-size: var(--summary-response-font-size);
-  line-height: 1.6;
-  min-height: 50px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  line-height: 1.7;
+  min-height: 60px;
+  max-width: 900px;
+  margin: 0 auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   opacity: 0; /* Hidden until content loads */
   transform: translate3d(0, 10px, 0);
+  padding: 2.25rem 2rem 3.5rem 2rem; /* Further increased bottom padding for attribution */
 }
 
 .review-summary-container.loaded .summary-response-area {
@@ -148,10 +151,15 @@
 /* Attribution styling */
 .summary-attribution {
   position: absolute;
-  bottom: 8px;
-  right: 12px;
-  font-size: 6px;
+  bottom: 28px;
+  right: 24px;
+  font-size: 10px;
   color: #969696;
+  background: rgba(255,255,255,0.7);
+  padding: 2px 8px;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .summary-attribution.hidden {

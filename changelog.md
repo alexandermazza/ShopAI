@@ -166,10 +166,12 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Minified `review-summary.js` using `terser` to `review-summary.min.js` to resolve linter file size warnings.
 - Updated `review-summary.liquid` schema to reference the minified JavaScript file.
+- Increased padding in the Review Summary block's response area for better text spacing.
+- Refined the OpenAI prompt for the Review Summary block to request a more concise (2-3 sentence) summary.
 
 ### Fixed
-- Resolved Shopify linter error "The schema does not exist" in `review-summary.liquid` by removing the unnecessary `"target": "section"` property from the schema definition.
-- Reduced source file size of `review-summary.js` by commenting out non-essential `console.log` statements to address linter file size warnings.
+- Resolved persistent error (`3:"An error occurred."`) in Review Summary block by switching from streaming (`ai` SDK) to non-streaming (`openai` SDK) API calls for the backend route (`resource-review-summary.tsx`). Root cause appeared to be an issue with the AI SDK's stream handling returning the error text within the stream itself.
+- Updated frontend (`review-summary.js`) to handle the new JSON response format from the non-streaming backend endpoint.
 
 ### Removed
 - Removed default star rating component provided by Shopify CLI template.
@@ -198,4 +200,13 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Resolved Shopify linter error "The schema does not exist" in `review-summary.liquid` by removing the unnecessary `"target": "section"` property from the schema definition.
-- Reduced source file size of `review-summary.js` by commenting out non-essential `console.log` statements to address linter file size warnings. 
+- Reduced source file size of `review-summary.js` by commenting out non-essential `console.log` statements to address linter file size warnings.
+
+## [Unreleased] - 2024-06-06
+
+### Changed
+- Improved Review Summary block UI/UX:
+  - Increased padding and max width of the summary response area for better readability and whitespace.
+  - Further increased bottom padding to ensure the attribution text ("Powered by ShopAI") never overlaps with the summary, even for long summaries or large text sizes.
+  - Moved attribution lower and increased its background and padding for clarity.
+- Re-minified `review-summary.js` to `review-summary.min.js` to ensure latest logic is deployed. 
