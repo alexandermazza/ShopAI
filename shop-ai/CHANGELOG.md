@@ -1,3 +1,7 @@
+# 1.5.0
+- Manually bumped version to 1.5.0 in package.json
+- Added npm script `version:bump` to allow easy semantic versioning via npm commands
+
 # @shopify/shopify-app-template-remix
 
 ## 2025.03.18
