@@ -209,4 +209,13 @@ All notable changes to this project will be documented in this file.
   - Increased padding and max width of the summary response area for better readability and whitespace.
   - Further increased bottom padding to ensure the attribution text ("Powered by ShopAI") never overlaps with the summary, even for long summaries or large text sizes.
   - Moved attribution lower and increased its background and padding for clarity.
-- Re-minified `review-summary.js` to `review-summary.min.js` to ensure latest logic is deployed. 
+- Re-minified `review-summary.js` to `review-summary.min.js` to ensure latest logic is deployed.
+
+## [Unreleased]
+### Added
+- Store owners can now select a "Tone of Voice" for AI-generated review summaries and Ask Me Anything answers. Supported tones: Professional & Neutral, Friendly & Conversational, Playful & Witty, Minimalist / TL;DR, Luxury / High-End, Hype & Trendy (Gen Z / TikTok Vibes), Sassy / Bold, Detailed & Analytical, Parent-Friendly / Family-Oriented, Outdoorsy / Rugged.
+- The selected tone is passed to the backend and used to influence the OpenAI prompt for both review summaries and product Q&A.
+- UI for tone selection added to both the review summary block and Ask Me Anything widget.
+
+### Fixed
+- Installed `openai` and `@types/node` to resolve linter/type errors for OpenAI SDK usage in resource routes. 

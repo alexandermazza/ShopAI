@@ -19,7 +19,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    const { question, productContext, language } = await request.json();
+    const { question, productContext, language, toneOfVoice } = await request.json();
     
     if (!question || !productContext) {
       return json({ error: "Missing question or product context" }, { status: 400 });
@@ -58,11 +58,26 @@ export async function action({ request }: ActionFunctionArgs) {
     };
     const languageName = languageMap[language] || "English";
 
+    // Map toneOfVoice to prompt instruction
+    const toneInstructions: Record<string, string> = {
+      professional: "Use a professional and neutral tone.",
+      friendly: "Use a friendly and conversational tone.",
+      playful: "Use a playful and witty tone.",
+      minimalist: "Be extremely concise, like a TL;DR.",
+      luxury: "Use a luxurious, high-end tone.",
+      hype: "Use hype, trendy, Gen Z/TikTok-inspired language.",
+      sassy: "Be bold and sassy.",
+      detailed: "Be detailed and analytical.",
+      parent: "Use a family-friendly, parent-oriented tone.",
+      outdoorsy: "Use an outdoorsy, rugged tone."
+    };
+    const toneInstruction = toneOfVoice && toneOfVoice !== 'default' ? (toneInstructions[toneOfVoice] || '') : '';
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ 
         role: "user", 
-        content: `Please answer in ${languageName}.
+        content: `${toneInstruction ? toneInstruction + "\n" : ""}Please answer in ${languageName}.
 
 You are a friendly and helpful product assistant for our online store.
 Your goal is to answer the user's question accurately using *only* the product information provided below. Do not make assumptions or use external knowledge.

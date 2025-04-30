@@ -18,11 +18,14 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   let scrapedReviews: string | undefined;
+  let toneOfVoice: string | undefined;
   try {
     const body = await request.json();
     console.log("Received request body:", body);
     scrapedReviews = body.scrapedReviews;
+    toneOfVoice = body.toneOfVoice;
     console.log("Received scrapedReviews:", scrapedReviews);
+    console.log("Received toneOfVoice:", toneOfVoice);
   } catch (e) {
     console.error("Error parsing JSON body:", e);
     return new Response("Error: Invalid JSON body\n", { status: 400, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
@@ -40,7 +43,22 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    const prompt = `You are an AI assistant specializing in analyzing customer feedback for an e-commerce product.
+    // Map toneOfVoice to prompt instruction
+    const toneInstructions: Record<string, string> = {
+      professional: "Use a professional and neutral tone.",
+      friendly: "Use a friendly and conversational tone.",
+      playful: "Use a playful and witty tone.",
+      minimalist: "Be extremely concise, like a TL;DR.",
+      luxury: "Use a luxurious, high-end tone.",
+      hype: "Use hype, trendy, Gen Z/TikTok-inspired language.",
+      sassy: "Be bold and sassy.",
+      detailed: "Be detailed and analytical.",
+      parent: "Use a family-friendly, parent-oriented tone.",
+      outdoorsy: "Use an outdoorsy, rugged tone."
+    };
+    const toneInstruction = toneOfVoice && toneOfVoice !== 'default' ? (toneInstructions[toneOfVoice] || '') : '';
+
+    const prompt = `${toneInstruction ? toneInstruction + "\n" : ""}You are an AI assistant specializing in analyzing customer feedback for an e-commerce product.
 Your task is to summarize the provided customer review snippets concisely and objectively. Aim for a summary of 2-3 sentences maximum.
 Focus on extracting the core sentiment and recurring themes (both positive and negative).
 DO NOT list individual reviews or quote directly unless illustrating a very specific, common point briefly.

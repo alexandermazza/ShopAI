@@ -256,6 +256,39 @@ const AskMeAnything = {
       const language = containerElement.getAttribute('data-language') || 'en';
       console.log(`AskMeAnything: Calling API via App Proxy (streaming): ${apiUrl}`);
 
+      // Add tone of voice selector if not present
+      let toneSelect = containerElement.querySelector('.tone-of-voice-select');
+      if (!toneSelect) {
+        toneSelect = document.createElement('select');
+        toneSelect.className = 'tone-of-voice-select';
+        toneSelect.setAttribute('aria-label', 'Select tone of voice');
+        toneSelect.style.margin = '0 0.5rem 0 0';
+        [
+          { value: 'default', label: 'Default' },
+          { value: 'professional', label: 'Professional & Neutral' },
+          { value: 'friendly', label: 'Friendly & Conversational' },
+          { value: 'playful', label: 'Playful & Witty' },
+          { value: 'minimalist', label: 'Minimalist / TL;DR' },
+          { value: 'luxury', label: 'Luxury / High-End' },
+          { value: 'hype', label: 'Hype & Trendy (Gen Z / TikTok Vibes)' },
+          { value: 'sassy', label: 'Sassy / Bold' },
+          { value: 'detailed', label: 'Detailed & Analytical' },
+          { value: 'parent', label: 'Parent-Friendly / Family-Oriented' },
+          { value: 'outdoorsy', label: 'Outdoorsy / Rugged' }
+        ].forEach(opt => {
+          const option = document.createElement('option');
+          option.value = opt.value;
+          option.textContent = opt.label;
+          toneSelect.appendChild(option);
+        });
+        // Insert before the search input
+        if (searchInput && searchInput.parentNode) {
+          searchInput.parentNode.insertBefore(toneSelect, searchInput);
+        }
+      }
+
+      const toneOfVoice = toneSelect.value || 'default';
+
       try {
         // --- Call Backend API ---
         const response = await fetch(apiUrl, {
@@ -267,6 +300,7 @@ const AskMeAnything = {
             question: query,
             productContext: combinedContext,
             language, // send selected language
+            toneOfVoice: toneOfVoice !== 'default' ? toneOfVoice : undefined
           }),
         });
 

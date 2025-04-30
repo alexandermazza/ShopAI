@@ -110,7 +110,20 @@ const ReviewSummary = {
     // --- Scrape review content --- 
     const scrapedReviews = await this.scrapeReviewContent();
 
-    console.log("ReviewSummary: scrapedReviews to send:", scrapedReviews);
+    // --- Get tone_of_voice from block settings ---
+    let toneOfVoice = 'default';
+    if (containerElement && containerElement.hasAttribute('data-block-settings')) {
+      try {
+        const settings = JSON.parse(containerElement.getAttribute('data-block-settings'));
+        if (settings && settings.tone_of_voice) {
+          toneOfVoice = settings.tone_of_voice;
+        }
+      } catch (e) {
+        console.warn('ReviewSummary: Failed to parse data-block-settings for tone_of_voice:', e);
+      }
+    }
+
+    console.log("ReviewSummary: scrapedReviews to send:", scrapedReviews, "toneOfVoice:", toneOfVoice);
 
     if (!scrapedReviews) {
         // console.log('ReviewSummary: No reviews found, hiding block.');
@@ -119,7 +132,7 @@ const ReviewSummary = {
     }
 
     // --- Reviews found, show block and fetch summary --- 
-    // console.log('ReviewSummary: Reviews found, making block visible and fetching summary.');
+    console.log(">>> ReviewSummary: Elements Check:", { containerElement, summaryContentElement, responseArea, attributionElement }); // Log elements
     containerElement.classList.add('visible'); // Make the container visible via CSS class
     summaryContentElement.textContent = ''; // Clear previous content
     responseArea.classList.remove('error');
@@ -128,6 +141,8 @@ const ReviewSummary = {
 
     // Use the App Proxy path for the new resource route
     const apiUrl = '/apps/proxy/resource-review-summary'; 
+
+    console.log(">>> ReviewSummary: BEFORE fetch call"); // Log before fetch
 
     try {
       // console.log(`ReviewSummary: Calling API via App Proxy (streaming): ${apiUrl}`);
@@ -138,32 +153,17 @@ const ReviewSummary = {
         },
         body: JSON.stringify({
           scrapedReviews: scrapedReviews, // Send scraped reviews
+          toneOfVoice: toneOfVoice !== 'default' ? toneOfVoice : undefined // Only send if not default
         }),
       });
+
+      console.log(">>> ReviewSummary: AFTER fetch call, Status:", response.status); // Log after fetch
 
       // --- Check Response Status --- 
       console.log(`>>> ReviewSummary: Response status: ${response.status}, ok: ${response.ok}`); // Log status
       if (!response.ok) {
-        let errorMessage = `API Error: ${response.status} ${response.statusText}`; 
-        try {
-          const errorJson = await response.json(); // Try to parse error JSON
-          errorMessage = errorJson.error || errorJson.details || errorJson.message || errorMessage;
-        } catch (e) {
-            try {
-              const errorText = await response.text(); // Fallback to text
-              if (errorText.startsWith('Error:')) {
-                  errorMessage = errorText;
-              } else if (response.headers.get('content-type')?.includes('text/html')) {
-                  errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
-                  console.error("ReviewSummary: Received HTML error page from App Proxy.");
-              } else {
-                  console.warn("ReviewSummary: Received non-JSON, non-standard error response body:", errorText);
-              }
-            } catch (readError) {
-               console.error('ReviewSummary: Failed to read error response body:', readError); // Keep critical error
-            }
-        }
-        throw new Error(errorMessage);
+        console.error(">>> ReviewSummary: Response not OK", response.status, response.statusText);
+        throw new Error(`API Error: ${response.status}`); // Simplified error
       }
 
       // --- Handle NON-STREAMED JSON Response --- 
@@ -172,40 +172,54 @@ const ReviewSummary = {
       responseArea.classList.remove('loading'); // Remove loading state
       containerElement.classList.add('loaded'); // Add class to trigger fade-in
 
+      // Log the response content type
+      const contentType = response.headers.get("content-type");
+      console.log(">>> ReviewSummary: Response Content-Type:", contentType);
+
       let summaryText = "Sorry, could not parse the summary."; // Default error
+      console.log(">>> ReviewSummary: BEFORE response.json()"); // Log before parsing
       try {
         const data = await response.json();
-        console.log(">>> ReviewSummary: Received JSON data:", data);
-        if (data && data.summary) {
+        console.log(">>> ReviewSummary: AFTER response.json(), Data:", data); // Log parsed data
+        if (data && typeof data.summary === 'string') { // More specific check
            summaryText = data.summary;
         } else {
-           console.error(">>> ReviewSummary: JSON response missing 'summary' property.");
-           summaryText = data.error || summaryText; // Use error from JSON if available
+           console.error(">>> ReviewSummary: Invalid data structure", data);
+           summaryText = "Error: Invalid response format.";
            responseArea.classList.add('error');
         }
       } catch (parseError) {
          console.error(">>> ReviewSummary: Error parsing JSON response:", parseError);
+         // Try to get raw text if JSON parsing failed
+         try {
+             const rawText = await response.text(); // Need to clone response or re-fetch to read body again
+             console.warn(">>> ReviewSummary: Displaying raw text due to JSON parse error:", rawText);
+             summaryText = rawText;
+         } catch (textError) {
+             console.error(">>> ReviewSummary: Failed to get raw text after JSON parse error:", textError);
+             summaryText = "Error loading summary."; // Final fallback
+         }
          responseArea.classList.add('error');
       }
 
       summaryContentElement.textContent = summaryText;
-      if (!responseArea.classList.contains('error')) {
-          attributionElement.classList.remove('hidden');
-      } else {
+      if (responseArea.classList.contains('error')) {
           attributionElement.classList.add('hidden'); // Hide attribution on error
+      } else {
+          attributionElement.classList.remove('hidden');
       }
 
     } catch (error) { // Catches fetch errors, response.ok=false etc.
-      console.log(">>> ReviewSummary: CATCH BLOCK ENTERED <<<");
-      console.error('ReviewSummary: Error during fetch setup or initial response handling:', error); // Keep critical error
+      console.error('>>> ReviewSummary: CATCH BLOCK error:', error); // Log any error caught
       summaryContentElement.textContent = `Error: ${error.message || 'Could not load summary.'}`;
       responseArea.classList.remove('loading');
       responseArea.classList.add('error');
-      containerElement.classList.add('loaded'); // Still trigger fade-in for error message
-      attributionElement.classList.remove('hidden');
+      containerElement.classList.add('loaded'); 
+      attributionElement.classList.add('hidden'); // Hide attribution on error
     } finally {
-      // No input to re-enable here
-      // console.log('ReviewSummary: Processing complete.');
+        console.log(">>> ReviewSummary: FINALLY block reached"); // Log that finally was reached
+        // Optional: Ensure loading is always removed
+        // responseArea.classList.remove('loading'); 
     }
   }
 };

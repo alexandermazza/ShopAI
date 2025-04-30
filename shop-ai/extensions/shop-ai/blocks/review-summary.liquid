@@ -3,7 +3,8 @@
 {% endcomment %}
 
 {% if block.settings.enable_review_summary %}
-<div id="review-summary-block" class="review-summary-container" style="display: none;">
+<div id="review-summary-block" class="review-summary-container" style="display: none;"
+  data-block-settings='{{ block.settings | json }}'>
   <div class="review-summary-header">
     <span class="summary-icon">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#ai-gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -186,6 +187,26 @@
       "id": "title",
       "label": "Block Title",
       "default": "Customers are saying..."
+    },
+    {
+      "type": "select",
+      "id": "tone_of_voice",
+      "label": "Tone of Voice",
+      "default": "default",
+      "options": [
+        { "value": "default", "label": "Default" },
+        { "value": "professional", "label": "Professional & Neutral" },
+        { "value": "friendly", "label": "Friendly & Conversational" },
+        { "value": "playful", "label": "Playful & Witty" },
+        { "value": "minimalist", "label": "Minimalist / TL;DR" },
+        { "value": "luxury", "label": "Luxury / High-End" },
+        { "value": "hype", "label": "Hype & Trendy (Gen Z / TikTok Vibes)" },
+        { "value": "sassy", "label": "Sassy / Bold" },
+        { "value": "detailed", "label": "Detailed & Analytical" },
+        { "value": "parent", "label": "Parent-Friendly / Family-Oriented" },
+        { "value": "outdoorsy", "label": "Outdoorsy / Rugged" }
+      ],
+      "info": "Choose the tone for AI-generated summaries and answers."
     }
   ]
 }
