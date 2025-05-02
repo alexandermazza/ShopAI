@@ -219,3 +219,11 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Installed `openai` and `@types/node` to resolve linter/type errors for OpenAI SDK usage in resource routes. 
+
+## [Unreleased]
+### Added
+- Applied glassmorphism (frosted glass) effect to the response area of both `review-summary.liquid` and `ask-me-anything.liquid` blocks. The response area now features a semi-transparent background, backdrop blur, soft border, and subtle light shadow for a modern, visually appealing look. No other areas or layouts were changed.
+
+## [Unreleased]
+### Changed
+- Updated `review-summary.liquid` block: The "Powered by ShopAI" attribution now always appears below the summary body text, never overlaps, and uses a smaller, more accessible style. Switched to flexbox column layout and static positioning for consistent placement. 
