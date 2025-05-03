@@ -1,43 +1,63 @@
-# ShopAI - AI-Powered Product Features for Shopify
+# ShopAI – AI-Powered Product Q&A & Review Summaries for Shopify
 
-ShopAI is a Shopify Theme App Extension that adds AI-powered features to your product pages, including an "Ask Me Anything" search bar and an AI-generated Review Summary.
+ShopAI supercharges your Shopify store with AI-driven product Q&A and review summarization. Delight shoppers, boost trust, and increase conversions—all with seamless, no-code theme integration.
 
-Customers can ask questions about the product, and the app uses the OpenAI API to provide answers based on the product's description and details. It can also analyze customer reviews to provide a concise summary of feedback.
+![ShopAI Screenshot](https://github.com/user-attachments/assets/6adb16d2-efe4-4e37-ad92-2d62862a7887)
 
-<img width="593" alt="image" src="https://github.com/user-attachments/assets/6adb16d2-efe4-4e37-ad92-2d62862a7887" />
+---
 
+## What is ShopAI?
 
-## Features
+ShopAI is a Shopify Theme App Extension that brings conversational AI and smart review insights directly to your product pages. Shoppers can ask natural language questions about any product, and instantly receive accurate, context-aware answers. ShopAI also summarizes customer reviews using AI, helping buyers make confident decisions faster.
 
-*   **"Ask Me Anything" Search Bar:** Allows customers to ask natural language questions about products directly on the product page.
-*   **AI Review Summary:** Automatically scrapes product reviews from the page and displays an AI-generated summary highlighting key customer feedback.
-*   **OpenAI Integration:** Leverages OpenAI's language models (e.g., `gpt-4o-mini`) to understand questions, summarize reviews, and generate relevant content based on product context.
-*   **Seamless Theme Integration:** Adds new sections available in the Shopify Theme Editor for easy placement and configuration ("Ask Me Anything", "AI Review Summary").
-*   **Customizable UI:** Modern design with gradient effects, easily styleable via Liquid and CSS.
+---
 
-## Technology Stack
+## Key Features
 
-*   **Frontend:** Remix, React, TypeScript, Tailwind CSS (via Liquid `<style>` tags), Vanilla JS (`ask-me-anything.js`, `review-summary.js`)
-*   **Backend:** Remix (Resource Routes for API endpoints: `api.resource-openai.tsx`, `api.resource-review-summary.tsx`)
-*   **Shopify:** Shopify CLI, Theme App Extensions, Liquid
-*   **AI:** OpenAI API (`gpt-4o-mini` via Vercel AI SDK `streamText`)
-*   **Build Tools:** Terser (for JS minification)
+- **Ask Me Anything Q&A:**
+  - Shoppers ask questions in plain language—ShopAI answers using only your product's details.
+  - Multilingual support and context-aware responses.
+  - Optimized for mobile and desktop.
 
+- **AI Review Summaries:**
+  - Instantly summarizes customer reviews into concise, sentiment-aware highlights.
+  - No more scrolling through endless reviews—buyers see what matters most.
 
-## Usage
+- **Seamless Shopify Integration:**
+  - Installs as a Theme App Extension—add blocks in the Shopify Theme Editor, no code required.
+  - Fully customizable UI to match your brand.
+  - Modern, accessible, and responsive design.
 
-1.  **Add Blocks:** In your Shopify development store's Theme Editor, navigate to a product page. Click "Add section" or "Add block" (depending on your theme structure) and search for "Ask Me Anything" or "AI Review Summary". Add the desired blocks to your page.
-2.  **Ask Questions:** Use the "Ask Me Anything" search bar to ask questions about the product.
-3.  **View Summary:** The "AI Review Summary" block will automatically attempt to scrape reviews and display a summary if reviews are found.
+- **Powered by OpenAI:**
+  - Uses state-of-the-art language models for natural, helpful answers and summaries.
 
-## Troubleshooting
+---
 
-*   **Extension Blocks Not Appearing:** Ensure the block files (`ask-me-anything.liquid`, `review-summary.liquid`) are directly inside the `blocks` directory. Check the Shopify CLI output for any build errors. Restart `shopify app dev` and hard-refresh the Theme Editor.
-*   **AI Review Summary Not Appearing:** This block hides itself if no review content (e.g., from Judge.me, Shopify Product Reviews) can be scraped from the page. Check the browser's developer console for errors from `review-summary.js`.
-*   **OpenAI API Key Error:** Double-check that the `OPENAI_API_KEY` is correctly set in the `shop-ai/.env` file and that the backend routes are loading it correctly.
-*   **500 Internal Server Error / Rate Limiting:** These errors from Shopify's API during `shopify app dev` might be temporary Shopify issues or due to making too many requests. Try waiting, restarting the dev server, re-authenticating (`shopify auth logout` then run `shopify app dev` again), or updating the Shopify CLI (`npm update -g @shopify/cli @shopify/theme`). Check `https://www.shopifystatus.com/`.
-*   **404 Errors for API Routes:** Ensure the API route files (`shop-ai/app/routes/api.resource-openai.tsx`, `shop-ai/app/routes/api.resource-review-summary.tsx`) exist and are correctly configured as resource routes (no default export). Check the `fetch` URLs in the frontend JavaScript (`ask-me-anything.js`, `review-summary.js`).
+## Data Handling & Security
 
-## Changelog
+- **No PII Storage:** ShopAI does not store or log any customer personal information (PII).
+- **Secure API Communication:** All AI requests are processed server-side. API keys are secured using environment variables and never exposed to the browser.
+- **Minimal Data Sharing:** Only product descriptions and review snippets are sent to OpenAI for processing—never customer emails, order data, or sensitive information.
+- **Stateless Operation:** ShopAI does not persist or retain any merchant or customer data. All data is processed in-memory and discarded after each request.
+- **Safe Logging:** Logs are used for debugging and never contain sensitive or identifying information.
+- **Shopify Compliance:** Follows Shopify's security best practices for app extensions and data handling.
 
-See [changelog.md](changelog.md) for a detailed history of changes. 
+---
+
+## Privacy & Compliance
+
+- **No Data Collection:** ShopAI does not collect, sell, or share merchant or customer data.
+- **Transient Data Use:** All data sent to OpenAI is used only for generating responses and is not stored by ShopAI.
+- **Merchant Control:** Merchants control what product and review data is exposed to the AI.
+- **App Store Ready:** Designed to meet Shopify's privacy and app store requirements.
+
+---
+
+## Support & Changelog
+
+- **Changelog:** See [changelog.md](changelog.md) for release history.
+- **Support:** For help or questions, contact [support@email.com](mailto:support@email.com) or open an issue on GitHub.
+
+---
+
+*ShopAI is the easiest way to add conversational AI and smart review insights to your Shopify store. No code, no hassle—just better shopping experiences.* 
