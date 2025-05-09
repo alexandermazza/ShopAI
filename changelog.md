@@ -226,4 +226,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Changed
-- Updated `review-summary.liquid` block: The "Powered by ShopAI" attribution now always appears below the summary body text, never overlaps, and uses a smaller, more accessible style. Switched to flexbox column layout and static positioning for consistent placement. 
+- Updated `review-summary.liquid` block: The "Powered by ShopAI" attribution now always appears below the summary body text, never overlaps, and uses a smaller, more accessible style. Switched to flexbox column layout and static positioning for consistent placement.
+
+## [Unreleased] - 2024-06-07
+
+### Changed
+- **Backend Cleanup:**
+  - Migrated all OpenAI Q&A and suggested question logic into the correct file (`shop-ai/app/routes/ask-openai.tsx`).
+  - Added support for the `getSuggestedQuestions` operation to the backend route, enabling the frontend to request AI-generated suggested questions for products.
+  - Deleted the misplaced `app/routes/ask-openai.tsx` file from the project root to prevent confusion and duplication. 

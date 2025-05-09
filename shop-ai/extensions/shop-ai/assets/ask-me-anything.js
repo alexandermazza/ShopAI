@@ -256,39 +256,6 @@ const AskMeAnything = {
       const language = containerElement.getAttribute('data-language') || 'en';
       console.log(`AskMeAnything: Calling API via App Proxy (streaming): ${apiUrl}`);
 
-      // Add tone of voice selector if not present
-      let toneSelect = containerElement.querySelector('.tone-of-voice-select');
-      if (!toneSelect) {
-        toneSelect = document.createElement('select');
-        toneSelect.className = 'tone-of-voice-select';
-        toneSelect.setAttribute('aria-label', 'Select tone of voice');
-        toneSelect.style.margin = '0 0.5rem 0 0';
-        [
-          { value: 'default', label: 'Default' },
-          { value: 'professional', label: 'Professional & Neutral' },
-          { value: 'friendly', label: 'Friendly & Conversational' },
-          { value: 'playful', label: 'Playful & Witty' },
-          { value: 'minimalist', label: 'Minimalist / TL;DR' },
-          { value: 'luxury', label: 'Luxury / High-End' },
-          { value: 'hype', label: 'Hype & Trendy (Gen Z / TikTok Vibes)' },
-          { value: 'sassy', label: 'Sassy / Bold' },
-          { value: 'detailed', label: 'Detailed & Analytical' },
-          { value: 'parent', label: 'Parent-Friendly / Family-Oriented' },
-          { value: 'outdoorsy', label: 'Outdoorsy / Rugged' }
-        ].forEach(opt => {
-          const option = document.createElement('option');
-          option.value = opt.value;
-          option.textContent = opt.label;
-          toneSelect.appendChild(option);
-        });
-        // Insert before the search input
-        if (searchInput && searchInput.parentNode) {
-          searchInput.parentNode.insertBefore(toneSelect, searchInput);
-        }
-      }
-
-      const toneOfVoice = toneSelect.value || 'default';
-
       try {
         // --- Call Backend API ---
         const response = await fetch(apiUrl, {
@@ -299,30 +266,25 @@ const AskMeAnything = {
           body: JSON.stringify({
             question: query,
             productContext: combinedContext,
-            language, // send selected language
-            toneOfVoice: toneOfVoice !== 'default' ? toneOfVoice : undefined
+            language // send selected language
           }),
         });
 
         // --- Check Response Status ---
         if (!response.ok) {
-          // Attempt to read error message from the streamed body if possible
           let errorMessage = `API Error: ${response.status} ${response.statusText}`;
           try {
-            const errorText = await response.text(); // Read body as text
-            // Simple check if it's likely our streamed error format
+            const errorText = await response.text();
             if (errorText.startsWith('Error:')) {
                 errorMessage = errorText;
             } else if (response.headers.get('content-type')?.includes('text/html')) {
                  errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
                  console.error("Received HTML error page from App Proxy.");
             } else {
-                 // If not HTML and not our specific error format, use the status text
                  console.warn("Received non-HTML, non-standard error response body:", errorText);
             }
           } catch (readError) {
             console.error('AskMeAnything: Failed to read error response body:', readError);
-            // Keep the original errorMessage based on status
           }
           throw new Error(errorMessage);
         }
@@ -336,20 +298,27 @@ const AskMeAnything = {
         answerContentElement.textContent = ''; // Ensure it's clear before streaming starts
         responseArea.classList.remove('loading'); // Remove loading once stream starts
 
+        // --- Stream and parse JSON if needed ---
+        let fullResponse = '';
         const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
         while (true) {
           const { value, done } = await reader.read();
           if (done) {
-            console.log('AskMeAnything: Stream finished.');
             break;
           }
-          // Append the chunk to the answer content
-          answerContentElement.textContent += value;
-          // Optional: Scroll to bottom if content overflows
-          // responseArea.scrollTop = responseArea.scrollHeight;
+          fullResponse += value;
         }
-        
-        // Final state after successful streaming
+        // Try to parse as JSON and extract answer
+        let answerText = fullResponse;
+        try {
+          const parsed = JSON.parse(fullResponse);
+          if (parsed && parsed.answer) {
+            answerText = parsed.answer;
+          }
+        } catch (e) {
+          // Not JSON, fallback to raw text
+        }
+        answerContentElement.textContent = answerText;
         responseArea.classList.add('visible'); 
         attributionElement.classList.remove('hidden');
 
@@ -360,11 +329,46 @@ const AskMeAnything = {
         responseArea.classList.add('error', 'visible');
         attributionElement.classList.remove('hidden'); 
       } finally {
-        console.log('AskMeAnything: Re-enabling input.');
         searchInput.disabled = false;
         searchInput.focus();
       }
     });
+
+    // --- AI Suggested Questions Feature ---
+    const suggestionsContainer = containerElement.querySelector('#suggested-questions-container');
+    if (suggestionsContainer && productContext) {
+      suggestionsContainer.innerHTML = '<span class="loading-message">Loading suggestions...</span>';
+      fetch('/apps/proxy/resource-openai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operation: 'getSuggestedQuestions',
+          productContext
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.suggestedQuestions && Array.isArray(data.suggestedQuestions) && data.suggestedQuestions.length > 0) {
+          suggestionsContainer.innerHTML = '';
+          data.suggestedQuestions.forEach(q => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'suggested-question-button';
+            btn.textContent = q;
+            btn.onclick = () => {
+              searchInput.value = q;
+              form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            };
+            suggestionsContainer.appendChild(btn);
+          });
+        } else {
+          suggestionsContainer.innerHTML = '';
+        }
+      })
+      .catch(() => {
+        suggestionsContainer.innerHTML = '';
+      });
+    }
   }
 };
 

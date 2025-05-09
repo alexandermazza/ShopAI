@@ -108,6 +108,11 @@
       <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Submit</button>
     </div>
   </form>
+
+  <div id="suggested-questions-container" class="suggested-questions-area" aria-label="Suggested questions">
+    <!-- Suggested questions will be loaded here by JavaScript -->
+  </div>
+
   <div class="response-area relative p-4 pb-8" aria-live="polite">
     <span class="ai-answer-content"><!-- AI response will be displayed here --></span>
     <div id="powered-by-attribution" class="text-gray-400 hidden">
@@ -343,6 +348,52 @@
 /* Utility to hide the button */
 .clear-button.hidden {
   display: none;
+}
+
+/* Suggested Questions Styles */
+.suggested-questions-area {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0;
+  min-height: 36px;
+}
+
+.suggested-question-button {
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  padding: 0.5rem 1rem;
+  margin: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  text-align: center;
+}
+
+.suggested-question-button:hover {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+  color: #1f2937;
+}
+
+.suggested-question-button:active {
+  transform: scale(0.98);
+  background-color: #d1d5db;
+}
+
+.suggested-questions-area .loading-message {
+  font-size: 0.875rem;
+  color: #6b7280;
+  padding: 0.5rem 1rem;
 }
 </style>
 {% endif %}
