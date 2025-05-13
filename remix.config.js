@@ -17,4 +17,8 @@ export default {
   serverModuleFormat: "esm",
   dev: { port: process.env.HMR_SERVER_PORT || 8002 },
   future: {},
+  serverDependenciesToBundle: [
+    "@shopify/shopify-app-remix",
+    "@shopify/polaris"
+  ],
 };

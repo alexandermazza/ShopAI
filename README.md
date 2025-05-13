@@ -298,6 +298,10 @@ If you  are consistently getting this error, it could be that the clock on your 
 
 To fix this ensure you have enabled `Set time and date automatically` in the `Date and Time` settings on your computer.
 
+## Features
+
+- **Ask Me Anything Widget**: Now robustly scrapes Judge.me reviews from the DOM, even if loaded asynchronously or after user scroll. Uses a MutationObserver and increased wait time to ensure up to 5 reviews are reliably captured and sent to the AI for context. Detailed logging is included for debugging and confirmation.
+
 ## Benefits
 
 Shopify apps are built on a variety of Shopify tools to create a great merchant experience.
@@ -333,3 +337,8 @@ This template uses [Remix](https://remix.run). The following Shopify tools are a
 - [App extensions](https://shopify.dev/docs/apps/app-extensions/list)
 - [Shopify Functions](https://shopify.dev/docs/api/functions)
 - [Getting started with internationalizing your app](https://shopify.dev/docs/apps/best-practices/internationalization/getting-started)
+
+## Troubleshooting
+
+- **Reviews not being captured by Ask Me Anything widget?**
+  - The widget now waits up to 20 seconds for Judge.me reviews to appear in the DOM, using a MutationObserver. If reviews are loaded late (e.g., after scroll or via AJAX), they will still be detected and included in the AI context. Check the browser console for logs like `AskMeAnything: MutationObserver found .jdgm-rev reviews:` to confirm successful scraping.

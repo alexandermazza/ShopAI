@@ -1,0 +1,10 @@
+{
+  "ratings": {
+    "stars": {
+      "label": "评分"
+    },
+    "home": {
+      "recommendationText": "推荐产品！"
+    }
+  }
+} 

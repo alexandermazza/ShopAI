@@ -1,21 +1,14 @@
 {
-  "include": ["env.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": ["env.d.ts", "app/**/*.ts", "app/**/*.tsx"],
+  "exclude": ["node_modules", "build", "dist", ".turbo", ".next", ".cache"],
   "compilerOptions": {
-    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "lib": ["DOM", "ES2022"],
     "strict": true,
     "skipLibCheck": true,
-    "isolatedModules": true,
-    "allowSyntheticDefaultImports": true,
-    "removeComments": false,
-    "forceConsistentCasingInFileNames": true,
     "noEmit": true,
-    "allowJs": true,
-    "resolveJsonModule": true,
     "jsx": "react-jsx",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "NodeNext",
     "target": "ES2022",
-    "baseUrl": ".",
-    "types": ["node"]
+    "moduleResolution": "nodenext"
   }
 }
