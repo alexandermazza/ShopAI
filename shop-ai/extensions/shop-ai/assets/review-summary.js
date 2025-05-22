@@ -202,11 +202,17 @@ const ReviewSummary = {
          responseArea.classList.add('error');
       }
 
+      // --- Apply animation if no error ---
+      summaryContentElement.textContent = ''; // Clear before setting
+      summaryContentElement.classList.remove('animate-text-reveal'); // Reset before applying
+
       summaryContentElement.textContent = summaryText;
-      if (responseArea.classList.contains('error')) {
-          attributionElement.classList.add('hidden'); // Hide attribution on error
+
+      if (!responseArea.classList.contains('error')) {
+        summaryContentElement.classList.add('animate-text-reveal');
+        attributionElement.classList.remove('hidden');
       } else {
-          attributionElement.classList.remove('hidden');
+        attributionElement.classList.add('hidden'); // Hide attribution on error
       }
 
     } catch (error) { // Catches fetch errors, response.ok=false etc.

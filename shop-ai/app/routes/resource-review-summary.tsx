@@ -62,7 +62,7 @@ export async function action({ request }: ActionFunctionArgs) {
 Your task is to summarize the provided customer review snippets concisely and objectively. Aim for a summary of 2-3 sentences maximum.
 Focus on extracting the core sentiment and recurring themes (both positive and negative).
 DO NOT list individual reviews or quote directly unless illustrating a very specific, common point briefly.
-Keep the summary brief and easy to read, suitable for display on a product page.
+Keep the summary brief and easy to read, suitable for display on a product page. Keep the summary concise and in simple language.
 Start the summary directly, without introductory phrases like "Here is a summary...".
 
 Customer Review Snippets:

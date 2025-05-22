@@ -14,8 +14,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // Basic check for API key configuration
   if (!process.env.OPENAI_API_KEY) {
-     console.error("OpenAI API key not configured on the server.");
-     return json({ error: "Server configuration error." }, { status: 500 });
+    console.error("OpenAI API key not configured on the server.");
+    return json({ error: "Server configuration error." }, { status: 500 });
   }
 
   let requestPayload: any;
@@ -34,10 +34,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     try {
       const prompt = `
-        You are an AI assistant for an e-commerce store. Based on the product information below, generate exactly 3 distinct, very concise questions a customer might ask. 
-        These questions should be short, ideally 5-10 words, suitable for clickable buttons. 
-        Focus on key product aspects like features, suitability, or comparisons.
-        Each question must be on a new line. Do not add numbering, prefixes like "Q:", or quotation marks.
+        You are an AI assistant for an e-commerce store. Based on the product information below, generate exactly 3 distinct, concise questions that a new customer, unfamiliar with the product, might ask. These questions should be short and to the point, suitable for clickable suggestions. Each question should be on a new line. Do not add any numbering, prefixes like "Q:", or quotation marks around the questions.
 
         Product Information:
         ---
@@ -59,7 +56,7 @@ export async function action({ request }: ActionFunctionArgs) {
       if (!content) {
         return json({ error: "Failed to generate suggested questions from AI." }, { status: 500 });
       }
-      const suggestedQuestions = content.split('\n').map((q: string) => q.trim()).filter(q => q.length > 0).slice(0, 3);
+      const suggestedQuestions = content.split('\n').map(q => q.trim()).filter(q => q.length > 0).slice(0, 3);
       
       return json({ suggestedQuestions });
 
@@ -84,7 +81,7 @@ export async function action({ request }: ActionFunctionArgs) {
         You are a product specialist for an online store. Your job is to answer customer questions with clarity, confidence, and a touch of marketing flair.
         You may make reasonable inferences based on the product details provided. Use context clues, related attributes, and common product knowledge to fill in gaps if necessary.
         When the user refers to "this" or "it" etc, assume they are referring to the product in the product context.
-        If you're truly unsure, say: "I'm not certain based on the current product details."
+        If you\'re truly unsure, say: "I\'m not certain based on the current product details."
         Be concise, helpful, and friendly.
 
         Additionally, if the question pertains to user reviews, provide insights based on the review data available. Highlight key points such as average ratings, common praises, or criticisms, and any notable trends in the reviews.
@@ -106,7 +103,7 @@ export async function action({ request }: ActionFunctionArgs) {
         max_tokens: 180, 
       });
       console.log("Received response from OpenAI for answer.");
-      const answer = completion.choices[0]?.message?.content?.trim() ?? "Sorry, I couldn't generate an answer.";
+      const answer = completion.choices[0]?.message?.content?.trim() ?? "Sorry, I couldn\'t generate an answer.";
       return json({ answer });
 
     } catch (error: unknown) {

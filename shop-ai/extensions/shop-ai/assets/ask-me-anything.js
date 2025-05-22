@@ -4,7 +4,6 @@ const AskMeAnything = {
     // Try immediately
     let reviews = document.querySelectorAll('.jdgm-rev');
     if (reviews.length > 0) {
-      console.log('AskMeAnything: Found .jdgm-rev reviews immediately:', reviews.length);
       return reviews;
     }
     // Set up observer
@@ -14,7 +13,6 @@ const AskMeAnything = {
         const reviewsNow = document.querySelectorAll('.jdgm-rev');
         if (reviewsNow.length > 0) {
           found = true;
-          console.log('AskMeAnything: MutationObserver found .jdgm-rev reviews:', reviewsNow.length);
           observer.disconnect();
           resolve(reviewsNow);
         }
@@ -24,7 +22,6 @@ const AskMeAnything = {
         if (!found) {
           observer.disconnect();
           const reviewsNow = document.querySelectorAll('.jdgm-rev');
-          console.log('AskMeAnything: Timeout, found .jdgm-rev reviews:', reviewsNow.length);
           resolve(reviewsNow);
         }
       }, maxWaitMs);
@@ -33,14 +30,12 @@ const AskMeAnything = {
 
   // --- Helper Function to Scrape Reviews ---
   async scrapeReviewContent() {
-    console.log("AskMeAnything: Attempting to scrape review content from DOM.");
     let reviewText = '\nCustomer Reviews:\n';
     let reviews = [];
 
     // Use robust waiting logic for Judge.me reviews
     const judgeMeReviews = await this.waitForJudgeMeReviews();
     if (judgeMeReviews.length > 0) {
-      console.log(`AskMeAnything: Processing ${judgeMeReviews.length} Judge.me review elements.`);
       judgeMeReviews.forEach((reviewElement, index) => {
         if (index >= 5) return; // Limit to 5 reviews
         const ratingElement = reviewElement.querySelector('.jdgm-rev__rating');
@@ -51,13 +46,10 @@ const AskMeAnything = {
         const bodyDiv = reviewElement.querySelector('.jdgm-rev__body');
         if (bodyP && bodyP.textContent.trim()) {
           bodyText = bodyP.textContent.trim();
-          console.log(`AskMeAnything: Review #${index+1} - Found body <p>:`, bodyText);
         } else if (bodyDiv && bodyDiv.textContent.trim()) {
           bodyText = bodyDiv.textContent.trim();
-          console.log(`AskMeAnything: Review #${index+1} - Found body div:`, bodyText);
         } else {
           bodyText = 'Review Text Missing';
-          console.log(`AskMeAnything: Review #${index+1} - No review body found.`);
         }
         const rating = ratingElement ? (ratingElement.getAttribute('data-score') || ratingElement.textContent.trim() || '?') : '?';
         const author = authorElement ? authorElement.textContent.trim().replace(/\s+/g, ' ') : '';
@@ -75,7 +67,6 @@ const AskMeAnything = {
         nativeReviews = document.querySelectorAll('.shopify-product-reviews .review');
       }
       if (nativeReviews.length > 0) {
-        console.log(`AskMeAnything: Found ${nativeReviews.length} native Shopify review elements.`);
         nativeReviews.forEach((reviewElement, index) => {
           if (index >= 5) return;
           const ratingElement = reviewElement.querySelector('.spr-review-rating, .review-rating');
@@ -93,21 +84,17 @@ const AskMeAnything = {
       }
     }
     if (reviews.length === 0) {
-      console.log("AskMeAnything: No review content scraped from the page.");
       return "\nCustomer Reviews: No reviews found on this page.\n";
     }
     reviews.forEach((r, i) => {
       reviewText += `- Review ${i + 1}: Rating: ${r.rating}/5. ${r.author ? 'By: ' + r.author + '. ' : ''}Comment: \"${r.body}\"\n`;
     });
-    console.log(`AskMeAnything: Scraped ${reviews.length} reviews.`);
     return reviewText;
   },
 
   // --- Helper to fetch reviews from Judge.me API ---
   async fetchJudgeMeReviews(productId, productUrl) {
-    console.log(`AskMeAnything: Fetching ALL Judge.me reviews via API for product ${productId}`);
     if (!productId || !productUrl) {
-      console.error("AskMeAnything: Missing productId or productUrl for API call.");
       return "\nCustomer Reviews: Could not fetch reviews (missing product info).\n";
     }
 
@@ -129,12 +116,9 @@ const AskMeAnything = {
         // The original request mentioned 'reviews_for_widget', which might be different.
         // Let's try the documented v1 endpoint first.
 
-        console.log(`AskMeAnything: Fetching page ${currentPage} from ${apiUrl}`);
-
         const response = await fetch(apiUrl);
 
         if (!response.ok) {
-          console.error(`AskMeAnything: Judge.me API request failed with status ${response.status}`);
           // Try to get error message if available
           let errorMsg = `API Error (${response.status})`;
           try {
@@ -149,7 +133,6 @@ const AskMeAnything = {
 
         // --- Parse V1 API Response --- 
         if (!data.reviews || data.reviews.length === 0) {
-           console.log(`AskMeAnything: No more reviews found on page ${currentPage}. Stopping fetch.`);
            break; // Exit loop if no reviews are returned
         }
 
@@ -168,8 +151,6 @@ const AskMeAnything = {
             totalReviewsFetched++;
         });
 
-        console.log(`AskMeAnything: Fetched ${data.reviews.length} reviews from page ${currentPage}. Total fetched: ${totalReviewsFetched}`);
-
         currentPage++;
 
         // Add a polite delay between requests
@@ -177,7 +158,6 @@ const AskMeAnything = {
       }
 
     } catch (error) {
-      console.error('AskMeAnything: Error fetching or processing Judge.me API reviews:', error);
       reviewsText += ' - Error fetching reviews. Please try again later.\n';
       // Return immediately with error message if fetch itself fails
       return reviewsText;
@@ -185,7 +165,6 @@ const AskMeAnything = {
 
     // --- Format the fetched reviews --- 
     if (allReviews.length === 0) {
-      console.log("AskMeAnything: No reviews fetched from the API.");
       return "\nCustomer Reviews: No reviews found.\n";
     }
 
@@ -193,14 +172,11 @@ const AskMeAnything = {
       reviewsText += `- Review ${i + 1}: Rating: ${r.rating}/5. ${r.author ? 'By: ' + r.author + '. ' : ''}${r.title ? 'Title: \"' + r.title + '\". ' : ''}Comment: "${r.body}"\n`;
     });
 
-    console.log(`AskMeAnything: Successfully formatted ${allReviews.length} reviews from API.`);
     return reviewsText;
   },
 
   onMount(containerElement = document) {
-    console.log('AskMeAnything: onMount called for container:', containerElement);
     if (!containerElement || containerElement.id !== 'ask-me-anything') {
-        console.error('AskMeAnything: Invalid containerElement passed to onMount:', containerElement);
         return;
     }
 
@@ -213,7 +189,6 @@ const AskMeAnything = {
     const productUrl = containerElement.dataset.productUrl;
 
     if (!searchInput || !responseArea || !answerContentElement || !attributionElement || !productContext || !productId || !productUrl) {
-      console.error('AskMeAnything: Missing required elements, product context, ID, or URL.');
       if(!searchInput) console.error('>>> searchInput missing');
       if(!responseArea) console.error('>>> responseArea missing');
       if(!answerContentElement) console.error('>>> answerContentElement missing');
@@ -228,7 +203,6 @@ const AskMeAnything = {
       }
       return;
     }
-    console.log('AskMeAnything: Found elements and context.');
 
     const form = containerElement.querySelector('form.ask-me-anything-form');
     // Remove keypress handler and use form submit instead
@@ -254,7 +228,6 @@ const AskMeAnything = {
       // Use the App Proxy path
       const apiUrl = '/apps/proxy/resource-openai';
       const language = containerElement.getAttribute('data-language') || 'en';
-      console.log(`AskMeAnything: Calling API via App Proxy (streaming): ${apiUrl}`);
 
       try {
         // --- Call Backend API ---
@@ -275,55 +248,45 @@ const AskMeAnything = {
           let errorMessage = `API Error: ${response.status} ${response.statusText}`;
           try {
             const errorText = await response.text();
-            if (errorText.startsWith('Error:')) {
-                errorMessage = errorText;
-            } else if (response.headers.get('content-type')?.includes('text/html')) {
-                 errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
-                 console.error("Received HTML error page from App Proxy.");
-            } else {
-                 console.warn("Received non-HTML, non-standard error response body:", errorText);
+            // Attempt to parse as JSON for more structured error, fallback to text
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.error || errorJson.message || errorMessage;
+            } catch (parseError) {
+                errorMessage = errorText || errorMessage;
             }
-          } catch (readError) {
-            console.error('AskMeAnything: Failed to read error response body:', readError);
-          }
-          throw new Error(errorMessage);
+          } catch (e) { /* Ignore if cannot read error text */ }
+
+          answerContentElement.textContent = `Error: ${errorMessage}`;
+          responseArea.classList.remove('loading');
+          responseArea.classList.add('error');
+          responseArea.classList.add('visible'); // Ensure it is visible to show error
+          attributionElement.classList.add('hidden'); // Hide attribution on error
+          return; // Exit early
         }
 
-        // --- Handle Streamed Response --- 
-        if (!response.body) {
-          throw new Error("Response body is null, cannot read stream.");
-        }
+        // --- Stream or Process Full Response ---
+        // Assuming your current backend sends a full JSON response:
+        const data = await response.json();
+        const answerText = data.answer || 'Sorry, I could not find an answer.';
 
-        console.log('AskMeAnything: Receiving streamed response...');
-        answerContentElement.textContent = ''; // Ensure it's clear before streaming starts
-        responseArea.classList.remove('loading'); // Remove loading once stream starts
+        // --- Display Answer ---
+        answerContentElement.textContent = ''; // Clear previous content
+        answerContentElement.classList.remove('animate-text-reveal'); // Reset animation class
 
-        // --- Stream and parse JSON if needed ---
-        let fullResponse = '';
-        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) {
-            break;
-          }
-          fullResponse += value;
-        }
-        // Try to parse as JSON and extract answer
-        let answerText = fullResponse;
-        try {
-          const parsed = JSON.parse(fullResponse);
-          if (parsed && parsed.answer) {
-            answerText = parsed.answer;
-          }
-        } catch (e) {
-          // Not JSON, fallback to raw text
-        }
+        // Force reflow to ensure the class removal is processed and animation can restart
+        void answerContentElement.offsetWidth;
+
+        // Setting text content before adding class (element is opacity: 0 due to base style)
         answerContentElement.textContent = answerText;
-        responseArea.classList.add('visible'); 
+        
+        responseArea.classList.remove('loading');
+        responseArea.classList.remove('error'); // Ensure no error state
+        responseArea.classList.add('visible'); // Make sure response area is visible
+        answerContentElement.classList.add('animate-text-reveal'); // Trigger animation
         attributionElement.classList.remove('hidden');
 
       } catch (error) {
-        console.error('AskMeAnything: Error during fetch or streaming:', error);
         answerContentElement.textContent = `Error: ${error.message || 'An unexpected error occurred.'}`;
         responseArea.classList.remove('loading');
         responseArea.classList.add('error', 'visible');
@@ -334,41 +297,24 @@ const AskMeAnything = {
       }
     });
 
-    // --- AI Suggested Questions Feature ---
-    const suggestionsContainer = containerElement.querySelector('#suggested-questions-container');
-    if (suggestionsContainer && productContext) {
-      suggestionsContainer.innerHTML = '<span class="loading-message">Loading suggestions...</span>';
-      fetch('/apps/proxy/resource-openai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          operation: 'getSuggestedQuestions',
-          productContext
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.suggestedQuestions && Array.isArray(data.suggestedQuestions) && data.suggestedQuestions.length > 0) {
-          suggestionsContainer.innerHTML = '';
-          data.suggestedQuestions.forEach(q => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'suggested-question-button';
-            btn.textContent = q;
-            btn.onclick = () => {
-              searchInput.value = q;
-              form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-            };
-            suggestionsContainer.appendChild(btn);
-          });
-        } else {
-          suggestionsContainer.innerHTML = '';
-        }
-      })
-      .catch(() => {
-        suggestionsContainer.innerHTML = '';
+    const clearButton = containerElement.querySelector('.clear-button');
+    if (clearButton && searchInput) {
+      searchInput.addEventListener('input', () => {
+        clearButton.classList.toggle('hidden', !searchInput.value);
+      });
+      clearButton.addEventListener('click', () => {
+        searchInput.value = '';
+        clearButton.classList.add('hidden');
+        searchInput.focus();
+        // Optionally hide response area when cleared manually
+        // responseArea.classList.remove('visible');
+        // answerContentElement.textContent = '';
+        // attributionElement.classList.add('hidden');
       });
     }
+
+    // --- AI Suggested Questions Feature ---
+    // (Moved to suggested-questions.js)
   }
 };
 
@@ -377,31 +323,24 @@ window.AskMeAnything = AskMeAnything;
 
 // More Robust Initialization using Shopify Events
 document.addEventListener('shopify:section:load', function(event) {
-  console.log('AskMeAnything: shopify:section:load event fired.');
   const sectionId = event.detail.sectionId;
   const sectionElement = document.getElementById(`shopify-section-${sectionId}`);
   if (!sectionElement) {
-     console.log('AskMeAnything: Section element not found for ID:', sectionId);
      return;
   }
   const container = sectionElement.querySelector(`#ask-me-anything`);
 
   if (container && container.dataset.initialized !== 'true') {
-    console.log('AskMeAnything: Initializing component via section:load.');
     AskMeAnything.onMount(container);
     container.dataset.initialized = 'true';
   } else if (container) {
-      console.log('AskMeAnything: Component already initialized (section:load).');
   } else {
-      console.log('AskMeAnything: Container #ask-me-anything not found in loaded section.');
   }
 });
 
 // Handle initial load for sections already present
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('AskMeAnything: DOMContentLoaded event fired.');
     document.querySelectorAll('#ask-me-anything:not([data-initialized="true"])').forEach(container => {
-        console.log('AskMeAnything: Initializing component via DOMContentLoaded.');
         AskMeAnything.onMount(container);
         container.dataset.initialized = 'true';
     });

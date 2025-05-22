@@ -48,6 +48,19 @@
   }
 }
 
+@keyframes textRevealClipBlurReview {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); /* Collapsed to the top */
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); /* Fully revealed */
+  }
+}
+
 :root {
   /* Reuse variables where possible, maybe define specific ones if needed */
   --ai-gradient: linear-gradient(90deg, #AF52DE, #007AFF, #AF52DE, #FF2D55, #FF9500);
@@ -135,6 +148,17 @@
   opacity: 0; /* Hidden until content loads */
   transform: translate3d(0, 10px, 0);
   padding: 2.25rem 2rem 2rem 2rem; /* Reduce bottom padding */
+}
+
+.ai-summary-content {
+  opacity: 0; /* Start transparent by default */
+  display: inline-block; /* Ensures clip-path and opacity work as expected */
+}
+
+.ai-summary-content.animate-text-reveal {
+  /* display: inline-block; is now in the base .ai-summary-content style */
+  animation: textRevealClipBlurReview 0.8s ease-out forwards;
+  animation-delay: 0.2s;
 }
 
 .review-summary-container.loaded .summary-response-area {

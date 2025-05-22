@@ -109,9 +109,11 @@
     </div>
   </form>
 
+{% if block.settings.enable_suggested_questions %}
   <div id="suggested-questions-container" class="suggested-questions-area" aria-label="Suggested questions">
     <!-- Suggested questions will be loaded here by JavaScript -->
   </div>
+{% endif %}
 
   <div class="response-area relative p-4 pb-8" aria-live="polite">
     <span class="ai-answer-content"><!-- AI response will be displayed here --></span>
@@ -120,6 +122,8 @@
     </div>
   </div>
 </div>
+
+<script src="{{ 'suggested-questions.min.js' | asset_url }}" defer></script>
 
 <script>
   // Pass product context to JS (Alternative: use data attribute as shown above)
@@ -141,6 +145,19 @@
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes textRevealClipBlurAMA {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    clip-path: polygon(0 0, 0% 0, 0% 100%, 0 100%); /* Collapsed to the left */
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); /* Fully revealed */
   }
 }
 
@@ -353,9 +370,8 @@
 /* Suggested Questions Styles */
 .suggested-questions-area {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column; /* Stack buttons vertically */
+  align-items: center; /* Changed from stretch to center */
   margin-top: 1rem;
   margin-bottom: 0.5rem;
   padding: 0.5rem 0;
@@ -363,37 +379,55 @@
 }
 
 .suggested-question-button {
-  background-color: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 9999px;
-  padding: 0.5rem 1rem;
-  margin: 0.375rem;
-  font-size: 0.875rem;
+  background-color: var(--response-bg); /* Match response area background */
+  border: 1px solid var(--response-border-color); /* Match response area border */
+  backdrop-filter: blur(10px); /* Frosted glass effect */
+  -webkit-backdrop-filter: blur(10px); /* Safari support */
+  border-radius: 12px; /* Consistent with response area, or choose a new value */
+  padding: 0.8rem 1.5rem; /* Increased padding */
+  margin: 0.375rem 0; /* Vertical margin only, as they are stacked */
+  font-size: var(--input-font-size); /* Match input font size */
   font-weight: 500;
-  line-height: 1.25rem;
-  color: #374151;
+  line-height: 1.5; /* Adjust for new font size and padding */
+  color: var(--text-color); /* Match text color */
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.1s ease;
-  display: inline-flex;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.1s ease, box-shadow 0.2s ease;
+  display: flex; /* Use flex for alignment if needed, though text-align might be enough */
   align-items: center;
+  justify-content: center; /* Center text in button */
   text-align: center;
+  width: fit-content; /* Changed from 100% to fit-content */
+  max-width: 550px; /* Added max-width */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); /* Subtle shadow */
 }
 
 .suggested-question-button:hover {
-  background-color: #e5e7eb;
-  border-color: #9ca3af;
-  color: #1f2937;
+  background-color: rgba(255, 255, 255, 0.75); /* Slightly less transparent on hover */
+  border-color: rgba(255, 255, 255, 0.5);
+  color: var(--text-color); /* Ensure text color remains */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Enhance shadow on hover */
 }
 
 .suggested-question-button:active {
-  transform: scale(0.98);
-  background-color: #d1d5db;
+  transform: scale(0.99); /* Adjusted scale for a more subtle effect */
+  background-color: rgba(255, 255, 255, 0.8); /* Slightly more opaque on active */
 }
 
 .suggested-questions-area .loading-message {
   font-size: 0.875rem;
   color: #6b7280;
   padding: 0.5rem 1rem;
+}
+
+.ai-answer-content {
+  opacity: 0; /* Start transparent by default */
+  display: inline-block; /* Ensures clip-path and opacity work as expected */
+}
+
+.ai-answer-content.animate-text-reveal {
+  /* display: inline-block; is now in the base .ai-answer-content style */
+  animation: textRevealClipBlurAMA 0.8s ease-out forwards;
+  animation-delay: 0.1s;
 }
 </style>
 {% endif %}
@@ -410,6 +444,13 @@
       "label": "Enable Ask Me Anything",
       "default": true,
       "info": "Uncheck this to hide the block if the ShopAI app is not active or configured."
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_suggested_questions",
+      "label": "Enable Suggested Questions",
+      "default": true,
+      "info": "Check this to show AI-generated suggested questions below the search bar."
     },
     {
       "type": "text",
