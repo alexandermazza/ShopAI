@@ -1,7 +1,14 @@
-import { authenticate } from "../shopify.server";
+import { authenticate, verifyShopifyHmac } from "../shopify.server";
 import db from "../db.server";
 
 export const action = async ({ request }) => {
+  const secret = process.env.SHOPIFY_API_SECRET || "";
+  const isValid = await verifyShopifyHmac(request.clone(), secret);
+  if (!isValid) {
+    console.error("Webhook HMAC verification failed for APP_UNINSTALLED");
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   const { shop, session, topic } = await authenticate.webhook(request);
 
   console.log(`Received ${topic} webhook for ${shop}`);

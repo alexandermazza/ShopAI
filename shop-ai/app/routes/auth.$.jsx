@@ -6,9 +6,20 @@ export const loader = async ({ request }) => {
   
   try {
     console.log("📝 Auth route: Attempting authenticate.admin");
-    await authenticate.admin(request);
-    console.log("✅ Auth route: Authentication successful");
-    return null;
+    const result = await authenticate.admin(request);
+    console.log("✅ Auth route: Authentication successful", { 
+      hasSession: !!result?.session,
+      shop: result?.session?.shop,
+      hasAdmin: !!result?.admin 
+    });
+    
+    if (result instanceof Response) {
+      console.log("📝 Auth route: Returning redirect response");
+      return result;
+    }
+    
+    console.log("📝 Auth route: OAuth completed, session established");
+    return json({ success: true, shop: result?.session?.shop });
   } catch (error) {
     console.error("❌ Auth route: Authentication error", { 
       message: error.message,
@@ -17,7 +28,6 @@ export const loader = async ({ request }) => {
       headers: Object.fromEntries([...request.headers.entries()].filter(([key]) => !['cookie', 'authorization'].includes(key.toLowerCase())))
     });
     
-    // Don't hide the error - let it propagate to trigger the standard error handling
     throw error;
   }
 };

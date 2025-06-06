@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { verifyShopifyHmac } from "~/shopify.server"; // Adjusted import path
+import { verifyShopifyHmac } from "../shopify.server";
 
 // Removed local verifyShopifyHmac function
 

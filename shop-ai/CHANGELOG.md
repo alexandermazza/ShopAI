@@ -1,4 +1,15 @@
-# 1.5.0
+# 1.6.0 (Latest)
+
+## Review Data Integration Fix - January 2025
+- **CRITICAL FIX**: Fixed review data not being included in ask-me-anything AI responses
+- **Issue**: The ask-me-anything feature was using `fetchJudgeMeReviews()` API calls instead of reliable DOM scraping
+- **Solution**: Updated to use `scrapeReviewContent()` method for consistent review data access
+- **Impact**: AI can now properly answer review-based questions like "What do customers say about this product?"
+- **Technical**: Modified `ask-me-anything.js` to use DOM scraping instead of Judge.me API calls
+- **Liquid Template**: Enhanced review data context preparation with fallback mechanisms for various review systems
+- **Compatibility**: Added support for Judge.me metafields, native Shopify reviews, and dynamic review loading
+
+## Previous Changes
 - Manually bumped version to 1.5.0 in package.json
 - Added npm script `version:bump` to allow easy semantic versioning via npm commands
 
@@ -79,3 +90,14 @@ Started tracking changes and releases using calver
 - Removed Vercel deployment configuration and dependencies.
 - Switched Prisma database from PostgreSQL to SQLite for standard development setup.
 - Corrected Remix resource route path for App Proxy requests.
+
+# ShopAI Changelog
+
+## 2025-01-XX - Project Analysis Session
+- Conducted comprehensive analysis of ShopAI app architecture and functionality
+- Documented core features: Ask Me Anything widget and Review Summarizer blocks
+- Identified AI integration with OpenAI GPT-4o-mini for conversational product assistance
+- Mapped out multilingual support (8+ languages) and customizable tone options
+- Analyzed Shopify theme extension structure with Liquid templates and modern UI
+- Confirmed deployment architecture: Remix app on Fly.io with Prisma/SQLite database
+- Verified production readiness with proper error handling and responsive design

@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { verifyShopifyHmac } from "~/shopify.server";
+import { verifyShopifyHmac } from "../shopify.server";
 
 export const action = async ({ request }) => {
   const secret = process.env.SHOPIFY_API_SECRET || "";

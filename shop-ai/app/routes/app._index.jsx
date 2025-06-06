@@ -52,65 +52,89 @@ export const action = async ({ request }) => {
       variables: {
         product: {
           title: `${color} Snowboard`,
+          variants: [{ price: Math.random() * 100 }],
         },
       },
     },
   );
-  const responseJson = await response.json();
-  const product = responseJson.data.productCreate.product;
-  const variantId = product.variants.edges[0].node.id;
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyRemixTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
-  );
-  const variantResponseJson = await variantResponse.json();
 
-  return {
-    product: responseJson.data.productCreate.product,
-    variant: variantResponseJson.data.productVariantsBulkUpdate.productVariants,
-  };
+  const responseJson = await response.json();
+  const product = responseJson.data?.productCreate?.product;
+
+  return { product };
 };
 
 export default function Index() {
   const fetcher = useFetcher();
-  const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
-  const productId = fetcher.data?.product?.id.replace(
-    "gid://shopify/Product/",
-    "",
-  );
-
+  const app = useAppBridge();
+  
+  // Force App Bridge initialization and session token validation with enhanced logging
   useEffect(() => {
-    if (productId) {
-      shopify.toast.show("Product created");
+    console.log("🟢 App component mounted, checking App Bridge...");
+    
+    if (app) {
+      console.log("🟢 App Bridge initialized successfully", {
+        config: app.config,
+        sessionToken: !!app.getSessionToken,
+        appBridgeVersion: window.shopify?.config?.version || 'unknown'
+      });
+      
+      // Test session token with more detailed logging
+      if (app.getSessionToken) {
+        app.getSessionToken().then(token => {
+          console.log("🟢 Session token validated successfully", { 
+            tokenLength: token?.length,
+            hasToken: !!token 
+          });
+          
+          // Additional validation - decode JWT header to verify structure
+          if (token) {
+            try {
+              const base64Header = token.split('.')[0];
+              const header = JSON.parse(atob(base64Header.replace(/-/g, '+').replace(/_/g, '/')));
+              console.log("🟢 Session token header validated", { 
+                algorithm: header.alg,
+                type: header.typ 
+              });
+            } catch (e) {
+              console.warn("⚠️ Could not decode session token header", e);
+            }
+          }
+        }).catch(error => {
+          console.error("🔴 Session token validation failed", error);
+        });
+      }
+      
+      // Verify App Bridge features are available
+      const appBridgeFeatures = {
+        hasActions: !!app.actions,
+        hasModal: !!app.Modal,
+        hasToast: !!app.Toast,
+        hasNavigation: !!app.features?.Navigation
+      };
+      console.log("🟢 App Bridge features check", appBridgeFeatures);
+      
+    } else {
+      console.error("🔴 App Bridge not initialized - this may cause embedded app checks to fail");
+      
+      // Check if App Bridge script loaded
+      const appBridgeScript = document.querySelector('script[src*="app-bridge"]');
+      console.log("🔍 App Bridge script element found:", !!appBridgeScript);
+      
+      // Check if global shopify object exists
+      console.log("🔍 Global shopify object:", !!window.shopify);
     }
-  }, [productId, shopify]);
+  }, [app]);
+
+  const isLoading =
+    ["loading", "submitting"].includes(fetcher.state) && fetcher.formMethod === "POST";
+  const productId = fetcher.data?.product?.id.replace("gid://shopify/Product/", "");
+
   const generateProduct = () => fetcher.submit({}, { method: "POST" });
 
   return (
     <Page>
-      <TitleBar title="Remix app template">
-        <button variant="primary" onClick={generateProduct}>
-          Generate a product
-        </button>
-      </TitleBar>
+      <TitleBar title="Remix app template" />
       <BlockStack gap="500">
         <Layout>
           <Layout.Section>
@@ -123,26 +147,13 @@ export default function Index() {
                   <Text variant="bodyMd" as="p">
                     This embedded app template uses{" "}
                     <Link
-                      url="https://shopify.dev/docs/apps/tools/app-bridge"
+                      url="https://shopify.dev/docs/apps/tools/cli"
                       target="_blank"
                       removeUnderline
                     >
-                      App Bridge
+                      Shopify CLI
                     </Link>{" "}
-                    interface examples like an{" "}
-                    <Link url="/app/additional" removeUnderline>
-                      additional page in the app nav
-                    </Link>
-                    , as well as an{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      Admin GraphQL
-                    </Link>{" "}
-                    mutation demo, to provide a starting point for app
-                    development.
+                    for building the app scaffold.
                   </Text>
                 </BlockStack>
                 <BlockStack gap="200">
@@ -150,23 +161,23 @@ export default function Index() {
                     Get started with products
                   </Text>
                   <Text as="p" variant="bodyMd">
-                    Generate a product with GraphQL and get the JSON output for
-                    that product. Learn more about the{" "}
+                    Generate a product with GraphQL and get the JSON output for that
+                    product. Learn more about the{" "}
                     <Link
-                      url="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
+                      url="https://shopify.dev/docs/api/admin-graphql"
                       target="_blank"
                       removeUnderline
                     >
-                      productCreate
-                    </Link>{" "}
-                    mutation in our API references.
+                      GraphQL Admin API
+                    </Link>
+                    .
                   </Text>
                 </BlockStack>
                 <InlineStack gap="300">
                   <Button loading={isLoading} onClick={generateProduct}>
                     Generate a product
                   </Button>
-                  {fetcher.data?.product && (
+                  {productId && (
                     <Button
                       url={`shopify:admin/products/${productId}`}
                       target="_blank"
@@ -177,44 +188,18 @@ export default function Index() {
                   )}
                 </InlineStack>
                 {fetcher.data?.product && (
-                  <>
-                    <Text as="h3" variant="headingMd">
-                      {" "}
-                      productCreate mutation
-                    </Text>
-                    <Box
-                      padding="400"
-                      background="bg-surface-active"
-                      borderWidth="025"
-                      borderRadius="200"
-                      borderColor="border"
-                      overflowX="scroll"
-                    >
-                      <pre style={{ margin: 0 }}>
-                        <code>
-                          {JSON.stringify(fetcher.data.product, null, 2)}
-                        </code>
-                      </pre>
-                    </Box>
-                    <Text as="h3" variant="headingMd">
-                      {" "}
-                      productVariantsBulkUpdate mutation
-                    </Text>
-                    <Box
-                      padding="400"
-                      background="bg-surface-active"
-                      borderWidth="025"
-                      borderRadius="200"
-                      borderColor="border"
-                      overflowX="scroll"
-                    >
-                      <pre style={{ margin: 0 }}>
-                        <code>
-                          {JSON.stringify(fetcher.data.variant, null, 2)}
-                        </code>
-                      </pre>
-                    </Box>
-                  </>
+                  <Box
+                    padding="400"
+                    background="bg-surface-active"
+                    borderWidth="025"
+                    borderRadius="200"
+                    borderColor="border"
+                    overflowX="scroll"
+                  >
+                    <pre style={{ margin: 0 }}>
+                      <code>{JSON.stringify(fetcher.data.product, null, 2)}</code>
+                    </pre>
+                  </Box>
                 )}
               </BlockStack>
             </Card>
@@ -307,14 +292,7 @@ export default function Index() {
                       to get started
                     </List.Item>
                     <List.Item>
-                      Explore Shopify’s API with{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        GraphiQL
-                      </Link>
+                      Explore Shopify's GraphQL Admin API
                     </List.Item>
                   </List>
                 </BlockStack>

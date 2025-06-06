@@ -58,18 +58,64 @@
     endif
 
     # --- Add Recent Reviews ---
-    if product.reviews.size > 0
+    # Try Judge.me reviews first (via metafields)
+    assign judgeme_reviews = product.metafields.judgeme.reviews.value
+    assign review_content_added = false
+    
+    if judgeme_reviews and judgeme_reviews != blank
       echo 'Customer Reviews (Summary):' | append: "\n"
       assign review_limit = 3
-      assign reviews_to_show = product.reviews | sort: 'created_at' | reverse | slice: 0, review_limit
-      for review in reviews_to_show
-        echo '- Rating: ' | append: review.rating | append: '/5' | append: "\n"
-        if review.content != blank
-          assign review_excerpt = review.content | strip_html | truncate: 150
-          echo '  Comment: ' | append: review_excerpt | append: "\n"
+      assign review_count_shown = 0
+      for review in judgeme_reviews
+        if review_count_shown < review_limit
+          if review.rating
+            echo '- Rating: ' | append: review.rating | append: '/5' | append: "\n"
+          endif
+          if review.body and review.body != blank
+            assign review_excerpt = review.body | strip_html | truncate: 150
+            echo '  Comment: ' | append: review_excerpt | append: "\n"
+          endif
+          assign review_count_shown = review_count_shown | plus: 1
         endif
       endfor
+      assign review_content_added = true
     endif
+    
+    # Fallback: Try alternative Judge.me metafield structure
+    unless review_content_added
+      assign judgeme_review_widget = product.metafields.judgeme.review_widget
+      if judgeme_review_widget and judgeme_review_widget != blank
+        echo 'Customer Reviews: Available (see Judge.me widget for details)' | append: "\n"
+        assign review_content_added = true
+      endif
+    endunless
+    
+    # Fallback: Try native Shopify product reviews (if available)
+    unless review_content_added
+      if product.metafields.reviews.reviews and product.metafields.reviews.reviews != blank
+        echo 'Customer Reviews (Summary):' | append: "\n"
+        assign review_limit = 3
+        assign reviews_to_show = product.metafields.reviews.reviews | slice: 0, review_limit
+        for review in reviews_to_show
+          if review.rating
+            echo '- Rating: ' | append: review.rating | append: '/5' | append: "\n"
+          endif
+          if review.content and review.content != blank
+            assign review_excerpt = review.content | strip_html | truncate: 150
+            echo '  Comment: ' | append: review_excerpt | append: "\n"
+          endif
+        endfor
+        assign review_content_added = true
+      endif
+    endunless
+    
+    # If we have rating but no review content, still mention the reviews exist
+    unless review_content_added
+      if review_count and review_count > 0
+        echo 'Customer Reviews: ' | append: review_count | append: ' reviews available with average rating of ' | append: avg_rating | append: ' stars.' | append: "\n"
+        echo 'Note: Detailed review content is loaded dynamically and can be accessed through customer questions about reviews.' | append: "\n"
+      endif
+    endunless
   endcapture
 
   assign context_string = captured_context
@@ -109,19 +155,18 @@
     </div>
   </form>
 
-{% if block.settings.enable_suggested_questions %}
-  <div id="suggested-questions-container" class="suggested-questions-area" aria-label="Suggested questions">
-    <!-- Suggested questions will be loaded here by JavaScript -->
-  </div>
-{% endif %}
-
   <div class="response-area relative p-4 pb-8" aria-live="polite">
     <span class="ai-answer-content"><!-- AI response will be displayed here --></span>
     <div id="powered-by-attribution" class="text-gray-400 hidden">
       Powered by ShopAI
     </div>
   </div>
-</div>
+
+{% if block.settings.enable_suggested_questions %}
+  <div id="suggested-questions-container" class="suggested-questions-area" aria-label="Suggested questions">
+    <!-- Suggested questions will be loaded here by JavaScript -->
+  </div>
+{% endif %}
 
 <script src="{{ 'suggested-questions.min.js' | asset_url }}" defer></script>
 
@@ -430,6 +475,7 @@
   animation-delay: 0.1s;
 }
 </style>
+</div>
 {% endif %}
 
 {% schema %}

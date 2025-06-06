@@ -1,10 +1,10 @@
 {
   "name": "shop-ai",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
   "scripts": {
-    "build": "remix vite:build",
-    "dev": "npm run setup && remix vite:dev",
+    "build": "remix vite:build && npx prisma generate",
+    "dev": "shopify app dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
     "deploy": "shopify app deploy",
@@ -17,8 +17,9 @@
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
-    "docker-start": "HOST=0.0.0.0 PORT=3000 remix-serve ./build/server/index.js",
-    "version:bump": "npm version"
+    "docker-start": "npx prisma db push --accept-data-loss --skip-generate && HOST=0.0.0.0 PORT=3000 remix-serve ./build/server/index.js",
+    "version:bump": "npm version",
+    "db:migrate": "npx prisma migrate dev"
   },
   "type": "module",
   "engines": {

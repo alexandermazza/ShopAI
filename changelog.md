@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2025-01-30
+
+### Added
+- **Shopify App Store Compliance:**
+  - Added App Bridge script from Shopify's CDN (`https://cdn.shopify.com/shopifycloud/app-bridge/app-bridge.js`) to the root HTML document.
+  - This ensures compliance with Shopify's embedded app checks for App Store submission.
+  - Script is loaded with `defer` attribute for optimal loading performance.
+
+### Changed
+- Prepared app for Shopify App Store submission by ensuring all embedded app requirements are met.
+
 ## [Unreleased] - 2024-06-03
 
 ### Added
@@ -234,4 +245,34 @@ All notable changes to this project will be documented in this file.
 - **Backend Cleanup:**
   - Migrated all OpenAI Q&A and suggested question logic into the correct file (`shop-ai/app/routes/ask-openai.tsx`).
   - Added support for the `getSuggestedQuestions` operation to the backend route, enabling the frontend to request AI-generated suggested questions for products.
-  - Deleted the misplaced `app/routes/ask-openai.tsx` file from the project root to prevent confusion and duplication. 
+  - Deleted the misplaced `app/routes/ask-openai.tsx` file from the project root to prevent confusion and duplication.
+
+## [Unreleased] - YYYY-MM-DD
+
+### Added
+- Setting to enable/disable suggested questions in the Ask Me Anything block.
+
+### Changed
+- Updated suggested questions UI: increased font size, stacked vertically, consistent width, increased padding, glassy background.
+- Moved suggested questions below response area on click.
+- Refined prompt for generating more concise suggested questions.
+
+### Fixed
+-
+
+### Removed
+- 
+
+## [Previous Version] - YYYY-MM-DD
+
+### Added
+- Created `SHOP_UPDATE` webhook handler at `shop-ai/app/routes/webhooks.shop.update.jsx`.
+- Added shared HMAC verification utility `verifyShopifyHmac` in `shop-ai/app/shopify.server.ts`.
+
+### Changed
+- Refactored GDPR webhook handlers (`shop.redact`, `customers.redact`, `customers.data_request`, `shop.update`) to use the shared `verifyShopifyHmac` utility.
+- Improved console logging in webhook handlers for better debugging.
+
+### Fixed
+- Ensured all mandatory Shopify compliance webhooks have handlers.
+- Standardized HMAC verification logic across relevant webhook handlers. 

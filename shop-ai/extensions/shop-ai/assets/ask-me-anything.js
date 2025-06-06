@@ -214,7 +214,7 @@ const AskMeAnything = {
       }
 
       // --- Fetch review content from Judge.me API --- 
-      const fetchedReviews = await this.fetchJudgeMeReviews(productId, productUrl);
+      const fetchedReviews = await this.scrapeReviewContent();
       const combinedContext = `${productContext}\n${fetchedReviews}`;
 
       // --- Show Loading State & Clear Previous Answer ---
@@ -344,4 +344,4 @@ document.addEventListener('DOMContentLoaded', () => {
         AskMeAnything.onMount(container);
         container.dataset.initialized = 'true';
     });
-}); 
+});
