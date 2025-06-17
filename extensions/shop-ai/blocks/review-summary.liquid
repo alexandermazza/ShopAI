@@ -1,0 +1,261 @@
+{% comment %}
+  Review Summary Block using AI
+{% endcomment %}
+
+{% if block.settings.enable_review_summary %}
+<div id="review-summary-block" class="review-summary-container"
+  data-block-settings='{{ block.settings | json }}'>
+  <div class="review-summary-header">
+    <span class="summary-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#ai-gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <defs>
+          <linearGradient id="ai-gradient" x1="0" y1="0" x2="24" y2="0" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#AF52DE"/>
+            <stop offset="0.33" stop-color="#007AFF"/>
+            <stop offset="0.66" stop-color="#AF52DE"/>
+            <stop offset="0.85" stop-color="#FF2D55"/>
+            <stop offset="1" stop-color="#FF9500"/>
+          </linearGradient>
+        </defs>
+        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path>
+      </svg>
+    </span>
+    <h3 class="summary-title">{{ block.settings.title | default: 'Customers are saying...' }}</h3>
+  </div>
+  <div class="summary-response-area flex flex-col gap-2 relative p-6 pb-6" aria-live="polite">
+     <span class="ai-summary-content">Loading review summary...</span>
+     <div class="summary-attribution text-gray-400 mt-3 text-xs font-normal" role="note">
+       Powered by ShopAI
+     </div>
+  </div>
+</div>
+
+<style>
+/* Define the gradient and animations */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 15px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes textRevealClipBlurReview {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); /* Collapsed to the top */
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); /* Fully revealed */
+  }
+}
+
+:root {
+  /* Reuse variables where possible, maybe define specific ones if needed */
+  --ai-gradient: linear-gradient(90deg, #AF52DE, #007AFF, #AF52DE, #FF2D55, #FF9500);
+  --shimmer-gradient: linear-gradient(90deg, #f0f0f0, #cccccc, #f0f0f0); /* Slightly adjusted contrast */
+  --summary-response-font-size: 1.5rem;
+  --summary-title-font-size: 1.8rem;
+  --text-color: #374151;
+  --response-bg: rgba(249, 250, 251, 0.8); /* Slightly different bg for distinction */
+  --response-border-color: rgba(229, 231, 235, 0.6);
+}
+
+.review-summary-container {
+  max-width: 800px;
+  margin: 2rem auto;  
+  padding: 1.5rem 1rem;
+  opacity: 1; /* Always visible - let JavaScript handle content */
+  transform: translate3d(0, 0, 0); /* Start in normal position */
+}
+
+.review-summary-container.visible {
+  /* Block is now always visible, this class can be used for additional styling if needed */
+}
+
+.review-summary-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.summary-icon,
+.summary-title {
+  /* Only .summary-icon keeps the gradient */
+  /* background: var(--ai-gradient); */
+  /* background-size: 100% auto; */
+  /* -webkit-background-clip: text; */
+  /* background-clip: text; */
+  /* color: transparent; */
+}
+
+.summary-icon {
+  margin-right: 0.8rem;
+  flex-shrink: 0;
+  display: inline-block; /* Needed for background-clip: text on SVG */
+  background: var(--ai-gradient);
+  background-size: 100% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.summary-icon svg {
+  display: block; /* Prevent extra space below SVG */
+  stroke: url(#ai-gradient); /* Attempt SVG gradient */
+}
+
+.summary-title {
+  font-size: var(--summary-title-font-size);
+  font-weight: 600;
+  line-height: 1.3;
+  color: #3A3B3C;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+}
+
+.summary-response-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.35); /* More glassy, semi-transparent */
+  border: 1.5px solid rgba(255, 255, 255, 0.35); /* Soft border */
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.10), 0 1.5px 4px 0 rgba(255,255,255,0.18); /* Subtle light shadow */
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--summary-response-font-size);
+  line-height: 1.7;
+  min-height: 60px;
+  max-width: 900px;
+  margin: 0 auto;
+  opacity: 1; /* Always visible - JavaScript will manage content */
+  transform: translate3d(0, 0, 0); /* Start in normal position */
+  padding: 2.25rem 2rem 2rem 2rem; /* Reduce bottom padding */
+}
+
+.ai-summary-content {
+  opacity: 1; /* Always visible - text content manages what's shown */
+  display: inline-block; /* Ensures clip-path and opacity work as expected */
+}
+
+.ai-summary-content.animate-text-reveal {
+  /* display: inline-block; is now in the base .ai-summary-content style */
+  animation: textRevealClipBlurReview 0.8s ease-out forwards;
+  animation-delay: 0.2s;
+}
+
+.review-summary-container.loaded .summary-response-area {
+   animation: fadeInUp 0.5s 0.1s ease forwards; /* Delay slightly */
+}
+
+.summary-response-area.loading {
+  background: var(--shimmer-gradient);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 1.5s linear infinite, fadeInUp 0.5s ease forwards;
+  opacity: 1; /* Show loading state */
+}
+
+.summary-response-area.error {
+  color: #dc2626;
+  font-weight: 500;
+  font-size: calc(var(--summary-response-font-size) * 0.95);
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: #dc2626;
+  animation: none;
+  opacity: 1; /* Show error state */
+  transform: none; /* Reset transform */
+}
+
+.summary-response-area.error .ai-summary-content {
+  opacity: 1 !important; /* Ensure error text is visible */
+}
+
+.summary-response-area.loading .ai-summary-content {
+  opacity: 1 !important; /* Ensure loading text is visible */
+}
+
+/* Attribution styling */
+.summary-attribution {
+  position: static;
+  bottom: auto;
+  right: auto;
+  font-size: 0.75rem; /* 12px */
+  color: #969696;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  pointer-events: none;
+  z-index: auto;
+  margin-top: 0.5rem;
+  line-height: 1.2;
+}
+
+.summary-attribution.hidden {
+  display: none;
+}
+</style>
+{% endif %}
+
+{% schema %}
+{
+  "name": "ShopAI - Summarizer",
+  "target": "section",
+  "javascript": "review-summary.min.js",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_review_summary",
+      "label": "Enable AI Review Summary",
+      "default": true,
+      "info": "Displays an AI-generated summary of product reviews if available."
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Block Title",
+      "default": "Customers are saying..."
+    },
+    {
+      "type": "select",
+      "id": "tone_of_voice",
+      "label": "Tone of Voice",
+      "default": "default",
+      "options": [
+        { "value": "default", "label": "Default" },
+        { "value": "professional", "label": "Professional & Neutral" },
+        { "value": "friendly", "label": "Friendly & Conversational" },
+        { "value": "playful", "label": "Playful & Witty" },
+        { "value": "minimalist", "label": "Minimalist / TL;DR" },
+        { "value": "luxury", "label": "Luxury / High-End" },
+        { "value": "hype", "label": "Hype & Trendy (Gen Z / TikTok Vibes)" },
+        { "value": "sassy", "label": "Sassy / Bold" },
+        { "value": "detailed", "label": "Detailed & Analytical" },
+        { "value": "parent", "label": "Parent-Friendly / Family-Oriented" },
+        { "value": "outdoorsy", "label": "Outdoorsy / Rugged" }
+      ],
+      "info": "Choose the tone for AI-generated summaries and answers."
+    }
+  ]
+}
+{% endschema %} 

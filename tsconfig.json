@@ -1,0 +1,18 @@
+{
+  "include": ["env.d.ts", "app/**/*.ts", "app/**/*.tsx"],
+  "exclude": ["node_modules", "build", "dist", ".turbo", ".next", ".cache"],
+  "compilerOptions": {
+    "lib": ["DOM", "ES2022"],
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./app/*"]
+    },
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "module": "NodeNext",
+    "target": "ES2022",
+    "moduleResolution": "nodenext"
+  }
+}

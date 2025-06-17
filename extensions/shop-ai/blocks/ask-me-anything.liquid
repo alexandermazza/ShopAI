@@ -1,0 +1,538 @@
+{% comment %}
+  The ask-me-anything search component using React
+{% endcomment %}
+
+{%- liquid
+  # --- Prepare Product Context ---
+  # Collect all relevant product information into a single string or JSON object
+  # Example: Basic details. Enhance this with metafields, variant info, etc.
+  assign product_json_string = product | json
+
+  # --- Use capture for context string ---
+  capture captured_context
+    echo 'Product Title: ' | append: product.title | append: "\n"
+    echo 'Product Description: ' | append: product.description | strip_html | append: "\n"
+    echo 'Vendor: ' | append: product.vendor | append: "\n"
+    echo 'Type: ' | append: product.type | append: "\n"
+
+    assign price_min_formatted = product.price_min | money
+    assign price_max_formatted = product.price_max | money
+    echo 'Price Range: ' | append: price_min_formatted | append: ' - ' | append: price_max_formatted | append: "\n"
+
+    if product.options_with_values.size > 0
+      echo 'Available Options:' | append: "\n"
+      for option in product.options_with_values
+        assign joined_values = option.values | join: ', '
+        echo '- ' | append: option.name | append: ': ' | append: joined_values | append: "\n"
+      endfor
+    endif
+
+    if product.variants.size > 0
+      echo 'Variants:' | append: "\n"
+      for variant in product.variants
+        assign availability = ''
+        if variant.available
+          assign availability = 'Available'
+        else
+          assign availability = 'Sold Out'
+        endif
+        assign variant_price_formatted = variant.price | money
+        echo '- ' | append: variant.title | append: ' (' | append: variant_price_formatted | append: ') - ' | append: availability | append: "\n"
+      endfor
+    endif
+
+    if product.tags.size > 0
+      assign joined_tags = product.tags | join: ', '
+      echo 'Tags: ' | append: joined_tags | append: "\n"
+    endif
+
+    # --- Add Judge.me Review Summary Metafields ---
+    assign avg_rating = product.metafields.reviews.rating.value
+    assign review_count = product.metafields.reviews.rating_count
+    assign rating_scale_max = product.metafields.reviews.rating.value.scale_max | default: 5.0
+
+    if review_count and review_count > 0
+      echo 'Average Customer Rating: ' | append: avg_rating | append: ' out of ' | append: rating_scale_max | append: ' stars (' | append: review_count | append: ' reviews)' | append: "\n"
+    elsif review_count == 0
+      echo 'Customer Reviews: No reviews yet.' | append: "\n"
+    endif
+
+    # --- Add Recent Reviews ---
+    # Try Judge.me reviews first (via metafields)
+    assign judgeme_reviews = product.metafields.judgeme.reviews.value
+    assign review_content_added = false
+    
+    if judgeme_reviews and judgeme_reviews != blank
+      echo 'Customer Reviews (Summary):' | append: "\n"
+      assign review_limit = 3
+      assign review_count_shown = 0
+      for review in judgeme_reviews
+        if review_count_shown < review_limit
+          if review.rating
+            echo '- Rating: ' | append: review.rating | append: '/5' | append: "\n"
+          endif
+          if review.body and review.body != blank
+            assign review_excerpt = review.body | strip_html | truncate: 150
+            echo '  Comment: ' | append: review_excerpt | append: "\n"
+          endif
+          assign review_count_shown = review_count_shown | plus: 1
+        endif
+      endfor
+      assign review_content_added = true
+    endif
+    
+    # Fallback: Try alternative Judge.me metafield structure
+    unless review_content_added
+      assign judgeme_review_widget = product.metafields.judgeme.review_widget
+      if judgeme_review_widget and judgeme_review_widget != blank
+        echo 'Customer Reviews: Available (see Judge.me widget for details)' | append: "\n"
+        assign review_content_added = true
+      endif
+    endunless
+    
+    # Fallback: Try native Shopify product reviews (if available)
+    unless review_content_added
+      if product.metafields.reviews.reviews and product.metafields.reviews.reviews != blank
+        echo 'Customer Reviews (Summary):' | append: "\n"
+        assign review_limit = 3
+        assign reviews_to_show = product.metafields.reviews.reviews | slice: 0, review_limit
+        for review in reviews_to_show
+          if review.rating
+            echo '- Rating: ' | append: review.rating | append: '/5' | append: "\n"
+          endif
+          if review.content and review.content != blank
+            assign review_excerpt = review.content | strip_html | truncate: 150
+            echo '  Comment: ' | append: review_excerpt | append: "\n"
+          endif
+        endfor
+        assign review_content_added = true
+      endif
+    endunless
+    
+    # If we have rating but no review content, still mention the reviews exist
+    unless review_content_added
+      if review_count and review_count > 0
+        echo 'Customer Reviews: ' | append: review_count | append: ' reviews available with average rating of ' | append: avg_rating | append: ' stars.' | append: "\n"
+        echo 'Note: Detailed review content is loaded dynamically and can be accessed through customer questions about reviews.' | append: "\n"
+      endif
+    endunless
+  endcapture
+
+  assign context_string = captured_context
+
+  # TODO: Consider adding image alt text, review content if available
+-%}
+
+{% if block.settings.enable_ask_me_anything %}
+<div id="ask-me-anything"
+     class="ask-me-anything-container"
+     data-product-context="{{ context_string | escape }}"
+     data-product-id="{{ product.id }}"
+     data-product-url="{{ shop.url }}{{ product.url }}"
+     {% if block.settings.search_border_color != blank %}style="--search-border-color-setting: {{ block.settings.search_border_color }};"{% endif %}
+     data-language="{{ block.settings.language }}">
+  <form class="ask-me-anything-form">
+    <div class="search-wrapper">
+      <span class="search-icon">
+        {% if block.settings.custom_logo != blank %}
+          <img src="{{ block.settings.custom_logo | image_url }}" alt="Search logo" width="24" height="24" style="width: 24px; height: 24px; object-fit: contain; display: block;" />
+        {% else %}
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path>
+        </svg>
+        {% endif %}
+      </span>
+      <input
+        type="search"
+        placeholder="{{ block.settings.placeholder | default: 'Ask me anything' }}"
+        class="search-input"
+        aria-label="{{ block.settings.placeholder | default: 'Ask me anything' }} search"
+        maxlength="300"
+        enterkeyhint="search"
+      >
+      <button type="button" class="clear-button hidden" aria-label="Clear search input">&times;</button>
+      <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Submit</button>
+    </div>
+  </form>
+
+  <div class="response-area relative p-4 pb-8" aria-live="polite">
+    <span class="ai-answer-content"><!-- AI response will be displayed here --></span>
+    <div id="powered-by-attribution" class="text-gray-400 hidden">
+      Powered by ShopAI
+    </div>
+  </div>
+
+{% if block.settings.enable_suggested_questions %}
+  <div id="suggested-questions-container" class="suggested-questions-area" aria-label="Suggested questions">
+    <!-- Suggested questions will be loaded here by JavaScript -->
+  </div>
+{% endif %}
+
+<script src="{{ 'suggested-questions.min.js' | asset_url }}" defer></script>
+
+<script>
+  // Pass product context to JS (Alternative: use data attribute as shown above)
+  // const productContextForJs = {{ product_json_string }};
+</script>
+
+<style>
+/* Define the gradient */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes textRevealClipBlurAMA {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    clip-path: polygon(0 0, 0% 0, 0% 100%, 0 100%); /* Collapsed to the left */
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); /* Fully revealed */
+  }
+}
+
+:root {
+  --ai-gradient: linear-gradient(90deg, #AF52DE, #007AFF, #AF52DE, #FF2D55, #FF9500);
+  --shimmer-gradient: linear-gradient(90deg, #f5f5f5, #a0a0a0, #f5f5f5); /* Grayscale gradient with more contrast */
+  --input-height: 4.5rem;
+  --default-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+  --input-font-size: 1.6rem;
+  --response-font-size: 1.5rem;
+  --text-color: #374151;
+  --placeholder-color: #9ca3af;
+  --icon-color: #ffffff;
+  --response-bg: rgba(255, 255, 255, 0.65); /* Semi-transparent white for glassy effect */
+  --response-border-color: rgba(255, 255, 255, 0.4); /* Lighter border for glassy effect */
+  --border-color: #e5e7eb;
+}
+
+.ask-me-anything-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 3rem 1rem;
+}
+
+.search-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative; /* Add relative positioning for absolute children */
+  padding: 4px; /* Increased padding for thicker border feel */
+  border-radius: 9999px;
+  /* Use the setting color if defined, otherwise use the default gradient */
+  background: var(--search-border-color-setting, var(--ai-gradient));
+  box-shadow: var(--default-shadow);
+  transition: box-shadow 0.3s ease;
+}
+
+.search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 1.1rem; /* Adjusted */
+  margin-right: 0.7rem; /* Adjusted */
+  color: var(--icon-color);
+  flex-shrink: 0;
+  /* Removed gradient background/clip */
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  font-size: var(--input-font-size);
+  font-family: inherit;
+  background: #fff;
+  color: var(--text-color);
+  padding: 0.8rem 1.5rem 0.8rem 1.5rem; 
+  border-radius: 9999px;
+  height: var(--input-height);
+  box-sizing: border-box;
+  line-height: normal;
+  padding-right: 5.5rem; /* Add padding to prevent text overlap with clear button */
+}
+
+.search-input::placeholder {
+  font-size: var(--input-font-size);
+  color: var(--placeholder-color); /* Use standard color */
+  opacity: 1; /* Reset opacity */
+  /* Removed gradient background/clip */
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+/* Clean focus state */
+.search-input:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+  background: #fff;
+}
+
+/* Keep wrapper identical */
+.search-input:focus + .search-wrapper {
+   background: var(--ai-gradient);
+   box-shadow: var(--default-shadow);
+}
+
+.response-area {
+  margin-top: 1.5rem;
+  padding: 1.2rem 1.5rem;
+  border-radius: 16px; /* Slightly more pronounced radius */
+  background-color: var(--response-bg);
+  border: 1px solid var(--response-border-color);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--response-font-size);
+  line-height: 1.6;
+  min-height: 60px;
+  display: none; /* Keep hidden initially */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+  backdrop-filter: blur(10px); /* Frosted glass effect */
+  -webkit-backdrop-filter: blur(10px); /* Safari support */
+  opacity: 0; /* Start hidden for animation */
+  transform: translate3d(0, 20px, 0); /* Start slightly lower for animation */
+}
+
+.response-area.visible {
+  display: block;
+  animation: fadeInUp 0.5s ease forwards; /* Apply fade-in animation */
+}
+
+/* Add loading state with shimmer */
+.response-area.loading {
+  background: var(--shimmer-gradient); /* Use grayscale gradient */
+  background-size: 200% 100%; /* Needs to match shimmer animation */
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent; /* Make text transparent to show gradient */
+  animation: shimmer 1.5s linear infinite, fadeInUp 0.5s ease forwards;
+  /* Keep fadeInUp if desired, or remove if loading should appear instantly */
+}
+
+.response-area.error {
+  color: #dc2626;
+  font-weight: 500;
+  font-size: calc(var(--response-font-size) * 0.95);
+  /* Remove shimmer if also loading class applied accidentally */
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: #dc2626;
+  animation: none;
+}
+
+/* Style for the attribution text */
+#powered-by-attribution {
+  position: absolute;
+  bottom: 8px; /* Equivalent to Tailwind's bottom-2 */
+  right: 12px; /* Equivalent to Tailwind's right-3 */
+  font-size: 6px;
+  color: #969696
+}
+
+/* Ensure it's hidden by default (JS controls visibility) */
+#powered-by-attribution.hidden {
+  display: none;
+}
+
+/* Visually hidden class */
+.visually-hidden {
+  position: absolute !important;
+  height: 1px; width: 1px;
+  overflow: hidden;
+  clip: rect(1px, 1px, 1px, 1px);
+  white-space: nowrap; /* prevent line breaks */
+}
+
+/* Clear Button Styles */
+.clear-button {
+  position: absolute;
+  right: 3.5rem; /* Move the clear button slightly to the left */
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.15); /* Semi-transparent dark background */
+  color: rgba(255, 255, 255, 0.8); /* Semi-transparent white text */
+  border: none;
+  border-radius: 50%;
+  width: 2rem; /* Size */
+  height: 2rem; /* Size */
+  font-size: 1.6rem; /* Cross size */
+  line-height: 1.9rem; /* Center the cross vertically */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+  backdrop-filter: blur(3px); /* Glassy effect */
+  -webkit-backdrop-filter: blur(3px); /* Safari support */
+  z-index: 5; /* Ensure it's above the input visually */
+}
+
+/* Hide browser default cancel button for search input */
+.search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none !important;
+}
+
+/* For IE/Edge (older versions) */
+.search-input::-ms-clear {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.clear-button:hover,
+.clear-button:focus {
+  background-color: rgba(0, 0, 0, 0.25);
+  opacity: 1;
+  outline: none;
+}
+
+/* Utility to hide the button */
+.clear-button.hidden {
+  display: none;
+}
+
+/* Suggested Questions Styles */
+.suggested-questions-area {
+  display: flex;
+  flex-direction: column; /* Stack buttons vertically */
+  align-items: center; /* Changed from stretch to center */
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0;
+  min-height: 36px;
+}
+
+.suggested-question-button {
+  background-color: var(--response-bg); /* Match response area background */
+  border: 1px solid var(--response-border-color); /* Match response area border */
+  backdrop-filter: blur(10px); /* Frosted glass effect */
+  -webkit-backdrop-filter: blur(10px); /* Safari support */
+  border-radius: 12px; /* Consistent with response area, or choose a new value */
+  padding: 0.8rem 1.5rem; /* Increased padding */
+  margin: 0.375rem 0; /* Vertical margin only, as they are stacked */
+  font-size: var(--input-font-size); /* Match input font size */
+  font-weight: 500;
+  line-height: 1.5; /* Adjust for new font size and padding */
+  color: var(--text-color); /* Match text color */
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.1s ease, box-shadow 0.2s ease;
+  display: flex; /* Use flex for alignment if needed, though text-align might be enough */
+  align-items: center;
+  justify-content: center; /* Center text in button */
+  text-align: center;
+  width: fit-content; /* Changed from 100% to fit-content */
+  max-width: 550px; /* Added max-width */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); /* Subtle shadow */
+}
+
+.suggested-question-button:hover {
+  background-color: rgba(255, 255, 255, 0.75); /* Slightly less transparent on hover */
+  border-color: rgba(255, 255, 255, 0.5);
+  color: var(--text-color); /* Ensure text color remains */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Enhance shadow on hover */
+}
+
+.suggested-question-button:active {
+  transform: scale(0.99); /* Adjusted scale for a more subtle effect */
+  background-color: rgba(255, 255, 255, 0.8); /* Slightly more opaque on active */
+}
+
+.suggested-questions-area .loading-message {
+  font-size: 0.875rem;
+  color: #6b7280;
+  padding: 0.5rem 1rem;
+}
+
+.ai-answer-content {
+  opacity: 0; /* Start transparent by default */
+  display: inline-block; /* Ensures clip-path and opacity work as expected */
+}
+
+.ai-answer-content.animate-text-reveal {
+  /* display: inline-block; is now in the base .ai-answer-content style */
+  animation: textRevealClipBlurAMA 0.8s ease-out forwards;
+  animation-delay: 0.1s;
+}
+</style>
+</div>
+{% endif %}
+
+{% schema %}
+{
+  "name": "ShopAI - AI Search",
+  "target": "section",
+  "javascript": "ask-me-anything.min.js",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_ask_me_anything",
+      "label": "Enable Ask Me Anything",
+      "default": true,
+      "info": "Uncheck this to hide the block if the ShopAI app is not active or configured."
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_suggested_questions",
+      "label": "Enable Suggested Questions",
+      "default": true,
+      "info": "Check this to show AI-generated suggested questions below the search bar."
+    },
+    {
+      "type": "text",
+      "id": "placeholder",
+      "label": "Search Placeholder",
+      "default": "Ask me anything"
+    },
+    {
+      "type": "color",
+      "id": "search_border_color",
+      "label": "Search Bar Border Color",
+      "info": "Overrides the default gradient border if a color is selected."
+    },
+    {
+      "type": "image_picker",
+      "id": "custom_logo",
+      "label": "Custom Logo (optional)",
+      "info": "Upload a logo to replace the sparkle icon in the search bar. Recommended size: 24x24px."
+    },
+    {
+      "type": "select",
+      "id": "language",
+      "label": "Widget Language",
+      "default": "en",
+      "options": [
+        { "value": "en", "label": "English" },
+        { "value": "fr", "label": "Français" },
+        { "value": "de", "label": "Deutsch" },
+        { "value": "es", "label": "Español" },
+        { "value": "it", "label": "Italiano" },
+        { "value": "zh", "label": "中文 (简体)" },
+        { "value": "hi", "label": "हिन्दी" },
+        { "value": "ko", "label": "한국어" }
+      ],
+      "info": "Select the language for the Ask Me Anything widget."
+    }
+  ]
+}
+{% endschema %} 

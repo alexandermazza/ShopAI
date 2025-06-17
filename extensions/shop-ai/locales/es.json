@@ -1,0 +1,10 @@
+{
+  "ratings": {
+    "stars": {
+      "label": "Calificaciones"
+    },
+    "home": {
+      "recommendationText": "¡Producto recomendado!"
+    }
+  }
+} 
