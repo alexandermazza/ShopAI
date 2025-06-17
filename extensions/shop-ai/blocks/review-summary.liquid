@@ -3,7 +3,7 @@
 {% endcomment %}
 
 {% if block.settings.enable_review_summary %}
-<div id="review-summary-block" class="review-summary-container" style="display: none;"
+<div id="review-summary-block" class="review-summary-container"
   data-block-settings='{{ block.settings | json }}'>
   <div class="review-summary-header">
     <span class="summary-icon">
@@ -23,7 +23,7 @@
     <h3 class="summary-title">{{ block.settings.title | default: 'Customers are saying...' }}</h3>
   </div>
   <div class="summary-response-area flex flex-col gap-2 relative p-6 pb-6" aria-live="polite">
-     <span class="ai-summary-content"><!-- AI summary will be displayed here --></span>
+     <span class="ai-summary-content">Loading review summary...</span>
      <div class="summary-attribution text-gray-400 mt-3 text-xs font-normal" role="note">
        Powered by ShopAI
      </div>
@@ -48,6 +48,19 @@
   }
 }
 
+@keyframes textRevealClipBlurReview {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); /* Collapsed to the top */
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); /* Fully revealed */
+  }
+}
+
 :root {
   /* Reuse variables where possible, maybe define specific ones if needed */
   --ai-gradient: linear-gradient(90deg, #AF52DE, #007AFF, #AF52DE, #FF2D55, #FF9500);
@@ -61,15 +74,14 @@
 
 .review-summary-container {
   max-width: 800px;
-  margin: 2rem auto;
+  margin: 2rem auto;  
   padding: 1.5rem 1rem;
-  opacity: 0; /* Start hidden for animation */
-  transform: translate3d(0, 15px, 0); /* Start slightly lower for animation */
+  opacity: 1; /* Always visible - let JavaScript handle content */
+  transform: translate3d(0, 0, 0); /* Start in normal position */
 }
 
 .review-summary-container.visible {
-  display: block !important; /* Override initial display: none */
-  animation: fadeInUp 0.6s ease forwards;
+  /* Block is now always visible, this class can be used for additional styling if needed */
 }
 
 .review-summary-header {
@@ -132,9 +144,20 @@
   min-height: 60px;
   max-width: 900px;
   margin: 0 auto;
-  opacity: 0; /* Hidden until content loads */
-  transform: translate3d(0, 10px, 0);
+  opacity: 1; /* Always visible - JavaScript will manage content */
+  transform: translate3d(0, 0, 0); /* Start in normal position */
   padding: 2.25rem 2rem 2rem 2rem; /* Reduce bottom padding */
+}
+
+.ai-summary-content {
+  opacity: 1; /* Always visible - text content manages what's shown */
+  display: inline-block; /* Ensures clip-path and opacity work as expected */
+}
+
+.ai-summary-content.animate-text-reveal {
+  /* display: inline-block; is now in the base .ai-summary-content style */
+  animation: textRevealClipBlurReview 0.8s ease-out forwards;
+  animation-delay: 0.2s;
 }
 
 .review-summary-container.loaded .summary-response-area {
@@ -162,6 +185,14 @@
   animation: none;
   opacity: 1; /* Show error state */
   transform: none; /* Reset transform */
+}
+
+.summary-response-area.error .ai-summary-content {
+  opacity: 1 !important; /* Ensure error text is visible */
+}
+
+.summary-response-area.loading .ai-summary-content {
+  opacity: 1 !important; /* Ensure loading text is visible */
 }
 
 /* Attribution styling */

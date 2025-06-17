@@ -87,11 +87,12 @@ const ReviewSummary = {
   },
 
   async onMount(containerElement = document) {
-    // console.log('ReviewSummary: onMount called for container:', containerElement);
+    console.log('ReviewSummary: onMount called for container:', containerElement);
     if (!containerElement || containerElement.id !== 'review-summary-block') {
         console.error('ReviewSummary: Invalid containerElement passed to onMount:', containerElement);
         return;
     }
+    console.log('ReviewSummary: Container validated, proceeding with initialization');
 
     const responseArea = containerElement.querySelector('.summary-response-area');
     const summaryContentElement = responseArea?.querySelector('.ai-summary-content');
@@ -103,7 +104,14 @@ const ReviewSummary = {
       if(!responseArea) console.error('>>> ReviewSummary: responseArea missing');
       if(!summaryContentElement) console.error('>>> ReviewSummary: summaryContentElement missing');
       if(!attributionElement) console.error('>>> ReviewSummary: attributionElement missing');
-      containerElement.style.display = 'none'; // Ensure block stays hidden on error
+      
+      // Still show the block with an error message instead of hiding it
+      containerElement.classList.add('visible');
+      containerElement.classList.add('loaded');
+      if (summaryContentElement) {
+        summaryContentElement.textContent = 'Configuration error. Reach out to info@shop-ai.co to resolve any issues.';
+        if (responseArea) responseArea.classList.add('error');
+      }
       return;
     }
 
@@ -125,19 +133,27 @@ const ReviewSummary = {
 
     console.log("ReviewSummary: scrapedReviews to send:", scrapedReviews, "toneOfVoice:", toneOfVoice);
 
-    if (!scrapedReviews) {
-        // console.log('ReviewSummary: No reviews found, hiding block.');
-        containerElement.style.display = 'none'; // Keep block hidden
-        return;
-    }
-
-    // --- Reviews found, show block and fetch summary --- 
-    console.log(">>> ReviewSummary: Elements Check:", { containerElement, summaryContentElement, responseArea, attributionElement }); // Log elements
+    // Always show the block, but handle no reviews case
     containerElement.classList.add('visible'); // Make the container visible via CSS class
     summaryContentElement.textContent = ''; // Clear previous content
     responseArea.classList.remove('error');
-    responseArea.classList.add('loading'); // Show loading state
     attributionElement.classList.add('hidden');
+
+    if (!scrapedReviews) {
+        // Show error message when no reviews are detected
+        console.log('ReviewSummary: No reviews found, showing error message.');
+        console.log('ReviewSummary: Setting error text and adding error class');
+        summaryContentElement.textContent = 'No reviews detected. Reach out to info@shop-ai.co to resolve any issues.';
+        responseArea.classList.add('error');
+        containerElement.classList.add('loaded');
+        console.log('ReviewSummary: Error message set. Content:', summaryContentElement.textContent);
+        console.log('ReviewSummary: Response area classes:', responseArea.className);
+        return;
+    }
+
+    // --- Reviews found, fetch summary --- 
+    console.log(">>> ReviewSummary: Elements Check:", { containerElement, summaryContentElement, responseArea, attributionElement }); // Log elements
+    responseArea.classList.add('loading'); // Show loading state
 
     // Use the App Proxy path for the new resource route
     const apiUrl = '/apps/proxy/resource-review-summary'; 
@@ -202,11 +218,17 @@ const ReviewSummary = {
          responseArea.classList.add('error');
       }
 
+      // --- Apply animation if no error ---
+      summaryContentElement.textContent = ''; // Clear before setting
+      summaryContentElement.classList.remove('animate-text-reveal'); // Reset before applying
+
       summaryContentElement.textContent = summaryText;
-      if (responseArea.classList.contains('error')) {
-          attributionElement.classList.add('hidden'); // Hide attribution on error
+
+      if (!responseArea.classList.contains('error')) {
+        summaryContentElement.classList.add('animate-text-reveal');
+        attributionElement.classList.remove('hidden');
       } else {
-          attributionElement.classList.remove('hidden');
+        attributionElement.classList.add('hidden'); // Hide attribution on error
       }
 
     } catch (error) { // Catches fetch errors, response.ok=false etc.
@@ -250,9 +272,11 @@ document.addEventListener('shopify:section:load', function(event) {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    // console.log('ReviewSummary: DOMContentLoaded event fired.');
-    document.querySelectorAll('#review-summary-block:not([data-initialized="true"])').forEach(container => {
-        // console.log('ReviewSummary: Initializing component via DOMContentLoaded.');
+    console.log('ReviewSummary: DOMContentLoaded event fired - looking for review blocks.');
+    const blocks = document.querySelectorAll('#review-summary-block:not([data-initialized="true"])');
+    console.log('ReviewSummary: Found blocks:', blocks.length);
+    blocks.forEach(container => {
+        console.log('ReviewSummary: Initializing component via DOMContentLoaded for block:', container);
         ReviewSummary.onMount(container);
         container.dataset.initialized = 'true';
     });

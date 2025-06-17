@@ -85,8 +85,15 @@ const SuggestedQuestions = {
   async onMount(containerElement = document) {
     console.log('SuggestedQuestions: onMount called for', containerElement);
     const suggestionsContainer = containerElement.querySelector('#suggested-questions-container');
+    
+    // Exit early if the suggestions container doesn't exist (e.g., disabled in settings)
+    if (!suggestionsContainer) {
+      console.log('SuggestedQuestions: suggestionsContainer not found. Exiting onMount.');
+      return; 
+    }
+
     console.log('SuggestedQuestions: suggestionsContainer:', suggestionsContainer);
-    if (!suggestionsContainer) return;
+    // No need to check again here
 
     const language = containerElement.getAttribute('data-language') || 'en'; // Get language
 
@@ -107,7 +114,8 @@ const SuggestedQuestions = {
         body: JSON.stringify({
           operation: 'getSuggestedQuestions',
           productContext: combinedContext,
-          language: language
+          language: language,
+          shop: window.Shopify?.shop || ''
         })
       });
       console.log('SuggestedQuestions: API response status:', res.status);
@@ -130,9 +138,13 @@ const SuggestedQuestions = {
           btn.onclick = () => {
             const searchInput = containerElement.querySelector('.search-input');
             const form = containerElement.querySelector('form.ask-me-anything-form');
-            if (searchInput && form) {
+            const responseArea = containerElement.querySelector('.response-area'); // Get the response area
+            if (searchInput && form && suggestionsContainer && responseArea) {
               searchInput.value = q;
               form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+
+              // Move suggestions below the response area
+              responseArea.parentNode.insertBefore(suggestionsContainer, responseArea.nextSibling);
             }
           };
           suggestionsContainer.appendChild(btn);

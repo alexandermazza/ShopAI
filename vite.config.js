@@ -52,6 +52,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    tsconfigPaths(),
     remix({
       ignoredRouteFiles: ["**/.*"],
       future: {
@@ -63,10 +64,12 @@ export default defineConfig({
         v3_routeConfig: true,
       },
     }),
-    tsconfigPaths(),
   ],
   build: {
     assetsInlineLimit: 0,
+    rollupOptions: {
+      external: ['~/shopify.server']
+    }
   },
   optimizeDeps: {
     include: ["@shopify/app-bridge-react", "@shopify/polaris"],

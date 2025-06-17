@@ -214,7 +214,7 @@ const AskMeAnything = {
       }
 
       // --- Fetch review content from Judge.me API --- 
-      const fetchedReviews = await this.fetchJudgeMeReviews(productId, productUrl);
+      const fetchedReviews = await this.scrapeReviewContent();
       const combinedContext = `${productContext}\n${fetchedReviews}`;
 
       // --- Show Loading State & Clear Previous Answer ---
@@ -239,7 +239,8 @@ const AskMeAnything = {
           body: JSON.stringify({
             question: query,
             productContext: combinedContext,
-            language // send selected language
+            language, // send selected language
+            shop: window.Shopify?.shop || ''
           }),
         });
 
@@ -248,49 +249,42 @@ const AskMeAnything = {
           let errorMessage = `API Error: ${response.status} ${response.statusText}`;
           try {
             const errorText = await response.text();
-            if (errorText.startsWith('Error:')) {
-                errorMessage = errorText;
-            } else if (response.headers.get('content-type')?.includes('text/html')) {
-                 errorMessage = `App Proxy Error ${response.status}: Check backend server or proxy config.`;
-            } else {
-                 console.warn("Received non-HTML, non-standard error response body:", errorText);
+            // Attempt to parse as JSON for more structured error, fallback to text
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.error || errorJson.message || errorMessage;
+            } catch (parseError) {
+                errorMessage = errorText || errorMessage;
             }
-          } catch (readError) {
-            console.error('AskMeAnything: Failed to read error response body:', readError);
-          }
-          throw new Error(errorMessage);
+          } catch (e) { /* Ignore if cannot read error text */ }
+
+          answerContentElement.textContent = `Error: ${errorMessage}`;
+          responseArea.classList.remove('loading');
+          responseArea.classList.add('error');
+          responseArea.classList.add('visible'); // Ensure it is visible to show error
+          attributionElement.classList.add('hidden'); // Hide attribution on error
+          return; // Exit early
         }
 
-        // --- Handle Streamed Response --- 
-        if (!response.body) {
-          throw new Error("Response body is null, cannot read stream.");
-        }
+        // --- Stream or Process Full Response ---
+        // Assuming your current backend sends a full JSON response:
+        const data = await response.json();
+        const answerText = data.answer || 'Sorry, I could not find an answer.';
 
-        answerContentElement.textContent = ''; // Ensure it's clear before streaming starts
-        responseArea.classList.remove('loading'); // Remove loading once stream starts
+        // --- Display Answer ---
+        answerContentElement.textContent = ''; // Clear previous content
+        answerContentElement.classList.remove('animate-text-reveal'); // Reset animation class
 
-        // --- Stream and parse JSON if needed ---
-        let fullResponse = '';
-        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) {
-            break;
-          }
-          fullResponse += value;
-        }
-        // Try to parse as JSON and extract answer
-        let answerText = fullResponse;
-        try {
-          const parsed = JSON.parse(fullResponse);
-          if (parsed && parsed.answer) {
-            answerText = parsed.answer;
-          }
-        } catch (e) {
-          // Not JSON, fallback to raw text
-        }
+        // Force reflow to ensure the class removal is processed and animation can restart
+        void answerContentElement.offsetWidth;
+
+        // Setting text content before adding class (element is opacity: 0 due to base style)
         answerContentElement.textContent = answerText;
-        responseArea.classList.add('visible'); 
+        
+        responseArea.classList.remove('loading');
+        responseArea.classList.remove('error'); // Ensure no error state
+        responseArea.classList.add('visible'); // Make sure response area is visible
+        answerContentElement.classList.add('animate-text-reveal'); // Trigger animation
         attributionElement.classList.remove('hidden');
 
       } catch (error) {
@@ -303,6 +297,22 @@ const AskMeAnything = {
         searchInput.focus();
       }
     });
+
+    const clearButton = containerElement.querySelector('.clear-button');
+    if (clearButton && searchInput) {
+      searchInput.addEventListener('input', () => {
+        clearButton.classList.toggle('hidden', !searchInput.value);
+      });
+      clearButton.addEventListener('click', () => {
+        searchInput.value = '';
+        clearButton.classList.add('hidden');
+        searchInput.focus();
+        // Optionally hide response area when cleared manually
+        // responseArea.classList.remove('visible');
+        // answerContentElement.textContent = '';
+        // attributionElement.classList.add('hidden');
+      });
+    }
 
     // --- AI Suggested Questions Feature ---
     // (Moved to suggested-questions.js)
@@ -335,4 +345,4 @@ document.addEventListener('DOMContentLoaded', () => {
         AskMeAnything.onMount(container);
         container.dataset.initialized = 'true';
     });
-}); 
+});

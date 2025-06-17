@@ -3,6 +3,10 @@
   "exclude": ["node_modules", "build", "dist", ".turbo", ".next", ".cache"],
   "compilerOptions": {
     "lib": ["DOM", "ES2022"],
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./app/*"]
+    },
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,

@@ -27,16 +27,16 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
+  "https://shop-ai.fly.dev/auth",
   "https://shop-ai.fly.dev/auth/callback",
-  "https://shop-ai.fly.dev/auth/shopify/callback",
-  "https://shop-ai.fly.dev/api/auth/callback"
+  "https://shop-ai.fly.dev/install"
 ]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://shop-ai.fly.dev:3000"
+url = "https://shop-ai.fly.dev"
 subpath = "proxy"
 prefix = "apps"
 

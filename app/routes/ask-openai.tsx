@@ -34,7 +34,10 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     try {
       const prompt = `
-        You are an AI assistant for an e-commerce store. Based on the product information below, generate exactly 3 distinct, concise questions that a new customer, unfamiliar with the product, might ask. These questions should be short and to the point, suitable for clickable suggestions. Each question should be on a new line. Do not add any numbering, prefixes like "Q:", or quotation marks around the questions.
+        You are an AI assistant for an e-commerce store. Based on the product information below, generate exactly 3 distinct, very concise questions a customer might ask. 
+        These questions should be short, ideally 5-10 words, suitable for clickable buttons. 
+        Focus on key product aspects like features, suitability, or comparisons.
+        Each question must be on a new line. Do not add numbering, prefixes like "Q:", or quotation marks.
 
         Product Information:
         ---
