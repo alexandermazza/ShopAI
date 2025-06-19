@@ -24,7 +24,7 @@
   </div>
   <div class="summary-response-area flex flex-col gap-2 relative p-6 pb-6" aria-live="polite">
      <span class="ai-summary-content">Loading review summary...</span>
-     <div class="summary-attribution text-gray-400 mt-3 text-xs font-normal" role="note">
+     <div class="summary-attribution text-gray-400 mt-3 text-xs font-normal" role="note" style="display: none;">
        Powered by ShopAI
      </div>
   </div>
@@ -195,25 +195,7 @@
   opacity: 1 !important; /* Ensure loading text is visible */
 }
 
-/* Attribution styling */
-.summary-attribution {
-  position: static;
-  bottom: auto;
-  right: auto;
-  font-size: 0.75rem; /* 12px */
-  color: #969696;
-  background: none;
-  padding: 0;
-  border-radius: 0;
-  pointer-events: none;
-  z-index: auto;
-  margin-top: 0.5rem;
-  line-height: 1.2;
-}
 
-.summary-attribution.hidden {
-  display: none;
-}
 </style>
 {% endif %}
 

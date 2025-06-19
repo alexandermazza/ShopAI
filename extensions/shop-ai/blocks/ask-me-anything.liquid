@@ -157,7 +157,7 @@
 
   <div class="response-area relative p-4 pb-8" aria-live="polite">
     <span class="ai-answer-content"><!-- AI response will be displayed here --></span>
-    <div id="powered-by-attribution" class="text-gray-400 hidden">
+    <div id="powered-by-attribution" class="text-gray-400 hidden" style="display: none;">
       Powered by ShopAI
     </div>
   </div>
@@ -338,19 +338,7 @@
   animation: none;
 }
 
-/* Style for the attribution text */
-#powered-by-attribution {
-  position: absolute;
-  bottom: 8px; /* Equivalent to Tailwind's bottom-2 */
-  right: 12px; /* Equivalent to Tailwind's right-3 */
-  font-size: 6px;
-  color: #969696
-}
 
-/* Ensure it's hidden by default (JS controls visibility) */
-#powered-by-attribution.hidden {
-  display: none;
-}
 
 /* Visually hidden class */
 .visually-hidden {

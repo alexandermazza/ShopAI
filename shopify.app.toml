@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "2a2ba6e7ada972054aa4e30f4d530a0d"
+client_id = "YOUR_NEW_API_KEY_HERE"
 name = "ShopAI"
 handle = "shopai-25"
 application_url = "https://shop-ai.fly.dev"
