@@ -18,22 +18,21 @@ import {
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
+// @ts-ignore - db.server.js is a JavaScript file
+import prisma from "../db.server.js";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
-  // Try to load store information (will be null if database isn't migrated yet)
+  // Load store information directly from database
   let storeInfo = null;
   try {
-    const response = await fetch(`${new URL(request.url).origin}/app/store-information`, {
-      headers: request.headers
+    storeInfo = await prisma.storeInformation.findUnique({
+      where: { shop: session.shop }
     });
-    if (response.ok) {
-      const data = await response.json();
-      storeInfo = data.storeInfo;
-    }
+    console.log("📝 Loaded store info for shop:", session.shop, storeInfo ? "Found" : "Not found");
   } catch (error) {
-    console.log("Store information not available yet (database may need migration)");
+    console.error("Error loading store information:", error);
   }
   
   return { storeInfo };
@@ -92,6 +91,24 @@ export default function Index() {
       });
     }
   }, [storeInfo]);
+
+  // Update form data after successful save
+  useEffect(() => {
+    if (fetcher.data?.success && fetcher.data?.storeInfo) {
+      setFormData({
+        storeName: fetcher.data.storeInfo.storeName || "",
+        storeDescription: fetcher.data.storeInfo.storeDescription || "",
+        shippingPolicy: fetcher.data.storeInfo.shippingPolicy || "",
+        returnPolicy: fetcher.data.storeInfo.returnPolicy || "",
+        storeHours: fetcher.data.storeInfo.storeHours || "",
+        contactInfo: fetcher.data.storeInfo.contactInfo || "",
+        specialServices: fetcher.data.storeInfo.specialServices || "",
+        aboutUs: fetcher.data.storeInfo.aboutUs || "",
+        additionalInfo: fetcher.data.storeInfo.additionalInfo || "",
+      });
+      console.log("📝 Form data updated after successful save");
+    }
+  }, [fetcher.data]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));

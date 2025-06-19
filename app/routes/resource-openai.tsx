@@ -2,7 +2,8 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import OpenAI from "openai";
-import prisma from "../db.server";
+// @ts-ignore - db.server.js is a JavaScript file
+import prisma from "../db.server.js";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -38,27 +39,39 @@ function buildStoreContext(storeInfo: any) {
   if (storeInfo.aboutUs) sections.push(`About Us: ${storeInfo.aboutUs}`);
   if (storeInfo.additionalInfo) sections.push(`Additional Information: ${storeInfo.additionalInfo}`);
   
-  return sections.length > 0 ? `\n\nStore Information:\n${sections.join('\n\n')}` : "";
+  return sections.length > 0 ? `\n\nStore Information:\n---\n${sections.join('\n')}\n---\n` : "";
 }
 
 // No default export - this makes it a resource route!
 
 // Action function to handle POST requests
 export async function action({ request }: ActionFunctionArgs) {
-  console.log("RESOURCE-OPENAI ROUTE HIT!");
+  console.log("🚀 RESOURCE-OPENAI ROUTE HIT!");
   
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
   try {
-    // Read the potential fields first
-    const { operation, question, productContext, language, toneOfVoice, shop } = await request.json();
+    // Extract shop from URL query parameters (App Proxy sends it in URL)
+    const url = new URL(request.url);
+    const shopFromUrl = url.searchParams.get('shop') || '';
+    
+    // Read the potential fields from JSON body
+    const { operation, question, productContext, language, toneOfVoice } = await request.json();
 
-    // Get store information - use shop from request or extract from headers
-    const shopDomain = shop || request.headers.get('x-shop-domain') || '';
+    // Get store information - shop comes from URL query params in App Proxy
+    const shopDomain = shopFromUrl || request.headers.get('x-shop-domain') || '';
+    console.log("🏪 Shop domain:", shopDomain);
+    
     const storeInfo = await getStoreInformation(shopDomain);
+    console.log("🏪 Store info found:", storeInfo ? "Yes" : "No");
+    
     const storeContext = buildStoreContext(storeInfo);
+    console.log("🏪 Store context length:", storeContext.length);
+    if (storeContext.length > 0) {
+      console.log("📋 Store context:", storeContext);
+    }
 
     // --- VALIDATION ---
     if (!productContext) {
@@ -94,29 +107,37 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (operation === 'getSuggestedQuestions') {
       // --- GENERATE SUGGESTED QUESTIONS ---
-      console.log("Operation: getSuggestedQuestions");
+      console.log("📤 Operation: getSuggestedQuestions");
       
-      // Note: No 'question' field needed for this operation
+      const prompt = `
+        Generate exactly 3 distinct, concise questions that customers might ask about this product and store. Make the questions short, clickable, and relevant.
+
+        IMPORTANT: Look at both the Product Information AND Store Information sections. Include questions about:
+        - Product features, specifications, or details
+        - Store policies (shipping, returns, warranties) if available
+        - Services or support if mentioned
+
+        Format: One question per line, no numbering, no quotes, no prefixes.
+
+        Product Information:
+        ---
+        ${productContext}
+        ---${storeContext}
+
+        Generate 3 relevant questions:
+      `;
+      
+      console.log("📤 Sending prompt to OpenAI for suggested questions with", prompt.length, "characters");
       
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini", 
-        messages: [{ 
-          role: "user", 
-          content: `Please analyze the following product information and generate exactly three distinct, relevant questions that a potential customer might ask about it. Consider both product-specific questions and general store policy questions based on the information provided. Respond only with a JSON array of strings, where each string is a question. Do not mention the name of the product - just refer to it as "this" or "it". Make sure that you are only asking questions that you're able to answer based on your knowledge. Keep the questions short and concise. Ensure the questions are in ${languageName}.
-
-<product_information>
-${productContext}
-</product_information>${storeContext}
-
-Example JSON Output: ["Question 1?", "Question 2?", "Question 3?"]
-
-Generated Questions:`
-        }],
-        temperature: 0.5, 
-        max_tokens: 200, 
-        response_format: { type: "json_object" } // Request JSON output if model supports it
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+        max_tokens: 200, // Reduced for shorter questions
       });
 
+      console.log("📥 Received response from OpenAI for suggested questions:", completion.choices[0]?.message?.content);
+      
       const suggestionsContent = completion.choices[0]?.message?.content?.trim();
       
       if (!suggestionsContent) {
@@ -124,27 +145,15 @@ Generated Questions:`
         return json({ error: "Could not generate suggested questions" }, { status: 500 });
       }
 
-      try {
-        // Attempt to parse the response as JSON
-        // The model might not always return perfect JSON, so wrap in try/catch
-        // A more robust approach might involve regex extraction if JSON parsing fails often
-        const suggestions = JSON.parse(suggestionsContent); 
-        // TODO: Validate if 'suggestions' is actually an array of strings
-        return json({ suggestions }); 
-      } catch (parseError) {
-        console.error("Error parsing suggested questions response from OpenAI:", parseError, "Raw content:", suggestionsContent);
-        // Fallback: Try to extract questions using a simple split if parsing fails
-        const fallbackSuggestions = suggestionsContent.split('\n').map(s => s.trim()).filter(s => s.endsWith('?')); // Basic fallback
-         if (fallbackSuggestions.length > 0) {
-            return json({ suggestions: fallbackSuggestions });
-         } else {
-            return json({ error: "Could not parse suggested questions from AI response" }, { status: 500 });
-         }
-      }
+      // Parse the response as simple lines instead of JSON
+      const suggestedQuestions = suggestionsContent.split('\n').map(q => q.trim()).filter(q => q.length > 0).slice(0, 3);
+      return json({ suggestions: { questions: suggestedQuestions } });
 
     } else {
       // --- ANSWER QUESTION (DEFAULT OPERATION) ---
-      console.log("Operation: answerQuestion (default)");
+      console.log("📤 Operation: answerQuestion (default)");
+      console.log("🔍 Question asked:", question);
+      console.log("📋 Product context length:", productContext?.length || 0);
       
       // Validate required 'question' field for this operation
       if (!question) {
@@ -155,39 +164,64 @@ Generated Questions:`
           return json({ error: `Question exceeds maximum length of ${MAX_QUESTION_LENGTH} characters.` }, { status: 400 });
       }
 
+      const prompt = `
+        You are a helpful product specialist for an online store. Your primary goal is to provide accurate, helpful answers using the information provided below.
+
+        IMPORTANT INSTRUCTIONS:
+        - ALWAYS check the Store Information section for policies, shipping, returns, hours, contact details, etc.
+        - If a customer asks about warranties, returns, shipping, policies, or store services, look in the Store Information section and provide specific details from there
+        - For product-specific questions, use the Product Information section
+        - If the information exists in either section, provide it directly and confidently
+        - Only say you don't have information if it's truly not provided in either section
+        - Be specific, helpful, and reference the actual policies/information provided
+        - When referring to "this product" or "it", use the product context provided
+        
+        FORMATTING RULES:
+        - Keep responses concise and conversational (2-3 sentences max)
+        - Use plain text only - NO markdown, asterisks, or special formatting
+        - Write in a natural, friendly tone
+        - Focus on the most important details first
+
+        Product Information:
+        ---
+        ${productContext}
+        ---${storeContext}
+
+        User Question: ${question}
+
+        Answer (be specific, concise, and use plain text only):
+      `;
+
+      console.log("📤 Sending prompt to OpenAI for answer with", prompt.length, "characters");
+
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
-        messages: [{ 
-          role: "user", 
-          content: `${toneInstruction ? toneInstruction + "\n" : ""}Please answer in ${languageName}.
-
-You are a friendly and helpful product assistant for our online store.
-Your goal is to answer the user's question accurately using the product and store information provided below. You are allowed to make assumptions based on the available information. If the question refers to "it" or "this", then assume the user is asking about the product.
-
-<product_information>
-${productContext}
-</product_information>${storeContext}
-
-User Question: ${question}
-
-If the answer is clearly stated in the product or store information, provide it concisely.
-If the question is about shipping, returns, store policies, contact information, or general store details, use the store information provided.
-If the answer cannot be found in the provided information OR you are unable to make an inference based on the available information, respond with: "I'm sorry, but I don't have the specific details to answer that based on the information available. Please contact us for more details."
-
-Answer:`
-        }],
-        temperature: 0.3,
-        max_tokens: 180,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3, // Reduced for more consistent responses
+        max_tokens: 300, // Reduced for more concise responses
       });
 
-      const answer = completion.choices[0]?.message?.content?.trim() ?? 
+      console.log("📥 Received response from OpenAI for answer:", completion.choices[0]?.message?.content);
+
+      // Clean up the response - remove markdown formatting and trim
+      let answer = completion.choices[0]?.message?.content?.trim() ?? 
         "Sorry, I couldn't generate an answer.";
+      
+      // Remove common markdown formatting
+      answer = answer
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Remove **bold**
+        .replace(/\*(.*?)\*/g, '$1')     // Remove *italic*
+        .replace(/__(.*?)__/g, '$1')     // Remove __underline__
+        .replace(/_(.*?)_/g, '$1')       // Remove _italic_
+        .replace(/`(.*?)`/g, '$1')       // Remove `code`
+        .replace(/#{1,6}\s*/g, '')       // Remove # headers
+        .trim();
         
       return json({ answer });
     }
 
   } catch (error) {
-    console.error("Error in resource-openai route:", error);
+    console.error("❌ Error in resource-openai route:", error);
     return json({ 
       error: "An error occurred", 
       details: error instanceof Error ? error.message : "Unknown error" 

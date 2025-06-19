@@ -1,4 +1,24 @@
-# 1.6.0 (Latest)
+# 1.6.2 (Latest)
+
+## Store Information Persistence Fix - January 2025
+- **CRITICAL FIX**: Fixed store information not persisting after save and refresh
+- **Issue**: Store information form data was disappearing when admin refreshed the page
+- **Solution**: Replaced inefficient fetch-based loading with direct database queries
+- **Technical**: Fixed database imports and added proper form state management after saves
+- **Enhancement**: Added comprehensive logging for debugging store information operations
+- **User Experience**: Store information now properly saves and displays when returning to the admin interface
+
+# 1.6.1
+
+## Store Information Integration - January 2025
+- **ENHANCEMENT**: Connected Store Information from admin dashboard to AI prompts
+- **Feature**: Ask Me Anything widget now includes store policies, shipping info, hours, and contact details in AI responses
+- **Improvement**: Suggested questions feature now generates context-aware questions about both products AND store policies
+- **Technical**: Modified `ask-openai.tsx` to fetch and integrate store information from database into AI prompts
+- **User Experience**: Customers can now ask about shipping policies, return processes, store hours, and services and get accurate answers
+- **Admin Benefit**: Store information configured in the "Store Information" tab now enhances all AI interactions
+
+# 1.6.0
 
 ## Review Data Integration Fix - January 2025
 - **CRITICAL FIX**: Fixed review data not being included in ask-me-anything AI responses
