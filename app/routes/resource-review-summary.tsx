@@ -36,7 +36,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return new Response("Error: Missing scraped review content\n", { status: 400, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
 
-  const MAX_REVIEW_TEXT_LENGTH = 6000;
+  const MAX_REVIEW_TEXT_LENGTH = 12000; // Doubled to handle more review content
   if (scrapedReviews.length > MAX_REVIEW_TEXT_LENGTH) {
     console.error(`Review content exceeds maximum length: ${scrapedReviews.length}`);
     return new Response(`Error: Review content exceeds maximum length of ${MAX_REVIEW_TEXT_LENGTH} characters.\n`, { status: 400, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
@@ -82,7 +82,7 @@ Very Concise Summary (2-3 sentences):`;
         content: prompt
       }],
       temperature: 0.7,
-      max_tokens: 150,
+      max_tokens: 400, // Increased for more comprehensive review summaries
     });
     // --- END NON-STREAMING TEST ---
 

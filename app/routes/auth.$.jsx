@@ -2,7 +2,14 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
-  console.log("📝 Auth route loader starting", { url: request.url });
+  const url = new URL(request.url);
+  const shop = url.searchParams.get("shop");
+  
+  console.log("📝 Auth route loader starting", { 
+    url: request.url,
+    shop,
+    searchParams: Object.fromEntries(url.searchParams.entries())
+  });
   
   try {
     console.log("📝 Auth route: Attempting authenticate.admin");
@@ -14,7 +21,10 @@ export const loader = async ({ request }) => {
     });
     
     if (result instanceof Response) {
-      console.log("📝 Auth route: Returning redirect response");
+      console.log("📝 Auth route: Returning redirect response", {
+        status: result.status,
+        location: result.headers.get('location')
+      });
       return result;
     }
     
@@ -23,10 +33,27 @@ export const loader = async ({ request }) => {
   } catch (error) {
     console.error("❌ Auth route: Authentication error", { 
       message: error.message,
+      name: error.name,
       stack: error.stack,
       url: request.url,
-      headers: Object.fromEntries([...request.headers.entries()].filter(([key]) => !['cookie', 'authorization'].includes(key.toLowerCase())))
+      shop,
+      userAgent: request.headers.get('user-agent'),
+      referer: request.headers.get('referer'),
+      shopifyDomain: request.headers.get('x-shopify-shop-domain')
     });
+    
+    // If this is an installation error, try redirecting to login
+    if (error.message?.includes('shop parameter is required') || 
+        error.message?.includes('Invalid shop domain') ||
+        error.message?.includes('session not found')) {
+      console.log("📝 Auth route: Redirecting to login due to auth error");
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `/auth/login${shop ? `?shop=${shop}` : ''}`
+        }
+      });
+    }
     
     throw error;
   }

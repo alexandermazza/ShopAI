@@ -107,7 +107,7 @@ export async function action({ request }: ActionFunctionArgs) {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
-        max_tokens: 300, // Increased from 100
+        max_tokens: 800, // Significantly increased to handle comprehensive store context
         n: 1,
       });
       console.log("📥 Received response from OpenAI for suggested questions:", completion.choices[0]?.message?.content);
@@ -166,7 +166,7 @@ export async function action({ request }: ActionFunctionArgs) {
         model: "gpt-4o-mini", 
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3, // Reduced for more consistent responses
-        max_tokens: 500, // Increased from 180
+        max_tokens: 1200, // Significantly increased to handle comprehensive store context and detailed answers
       });
       console.log("📥 Received response from OpenAI for answer:", completion.choices[0]?.message?.content);
       const answer = completion.choices[0]?.message?.content?.trim() ?? "Sorry, I couldn\'t generate an answer.";

@@ -1,4 +1,17 @@
-# 1.6.2 (Latest)
+# 1.6.3 (Latest)
+
+## Enhanced Text Animation with Aceternity UI Effect - January 2025
+- **ENHANCEMENT**: Replaced text reveal animations with modern word-by-word fade-in effect
+- **Feature**: Implemented vanilla JavaScript version of Aceternity UI Text Generate Effect
+- **Technical**: 
+  - Created `text-generate-effect.js` with configurable duration, stagger delay, and blur options
+  - Replaced CSS keyframe animations (`textRevealClipBlurAMA`, `textRevealClipBlurReview`) with JavaScript-based animations
+  - Updated both Ask Me Anything and Review Summary blocks to use the new effect
+- **User Experience**: Text now animates in word-by-word with smooth blur-to-clear transitions
+- **Accessibility**: Maintains semantic HTML structure while enhancing visual appeal
+- **Performance**: Lightweight vanilla JS implementation with proper cleanup and error handling
+
+# 1.6.2
 
 ## Store Information Persistence Fix - January 2025
 - **CRITICAL FIX**: Fixed store information not persisting after save and refresh
@@ -121,3 +134,24 @@ Started tracking changes and releases using calver
 - Analyzed Shopify theme extension structure with Liquid templates and modern UI
 - Confirmed deployment architecture: Remix app on Fly.io with Prisma/SQLite database
 - Verified production readiness with proper error handling and responsive design
+
+## [Security Fix] - 2025-01-09
+### Security
+- **CRITICAL**: Removed exposed Shopify API keys from repository after GitGuardian detection
+- Replaced exposed API keys and client secrets with placeholder values in `.env` and `shopify.app.toml`
+- Generated new client secret in Shopify Partner Dashboard
+- Revoked old compromised client secret
+- Enhanced `.gitignore` to prevent future API key exposure
+- Removed `build/` directory containing compiled code with exposed keys
+- All exposed credentials have been rotated and secured
+
+### Added
+- Comprehensive `.gitignore` patterns for sensitive files and directories
+- Security commit removing 44 files with exposed credentials
+
+### Changed
+- Updated environment file structure with placeholder values
+- Improved repository security posture
+
+## Previous Changes
+- [Add your previous changelog entries here]

@@ -78,7 +78,7 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ error: "Missing product context" }, { status: 400 });
     }
     
-    const MAX_CONTEXT_LENGTH = 5000; // Adjust as needed
+    const MAX_CONTEXT_LENGTH = 15000; // Significantly increased to handle comprehensive product and store context
     if (productContext.length > MAX_CONTEXT_LENGTH) {
       console.warn(`Product context truncated for OpenAI call. Original length: ${productContext.length}`);
       // Optionally truncate context instead of erroring, though it might affect answer quality
@@ -133,7 +133,7 @@ export async function action({ request }: ActionFunctionArgs) {
         model: "gpt-4o-mini", 
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
-        max_tokens: 200, // Reduced for shorter questions
+        max_tokens: 600, // Increased to handle comprehensive store context in suggestions
       });
 
       console.log("📥 Received response from OpenAI for suggested questions:", completion.choices[0]?.message?.content);
@@ -198,7 +198,7 @@ export async function action({ request }: ActionFunctionArgs) {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3, // Reduced for more consistent responses
-        max_tokens: 300, // Reduced for more concise responses
+        max_tokens: 900, // Significantly increased to handle comprehensive store context
       });
 
       console.log("📥 Received response from OpenAI for answer:", completion.choices[0]?.message?.content);

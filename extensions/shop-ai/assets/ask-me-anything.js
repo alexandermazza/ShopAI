@@ -271,20 +271,23 @@ const AskMeAnything = {
         const data = await response.json();
         const answerText = data.answer || 'Sorry, I could not find an answer.';
 
-        // --- Display Answer ---
-        answerContentElement.textContent = ''; // Clear previous content
-        answerContentElement.classList.remove('animate-text-reveal'); // Reset animation class
-
-        // Force reflow to ensure the class removal is processed and animation can restart
-        void answerContentElement.offsetWidth;
-
-        // Setting text content before adding class (element is opacity: 0 due to base style)
-        answerContentElement.textContent = answerText;
-        
+        // --- Display Answer with Text Generate Effect ---
         responseArea.classList.remove('loading');
         responseArea.classList.remove('error'); // Ensure no error state
         responseArea.classList.add('visible'); // Make sure response area is visible
-        answerContentElement.classList.add('animate-text-reveal'); // Trigger animation
+        
+        // Use TextGenerateEffect for animation
+        if (window.TextGenerateEffect) {
+          TextGenerateEffect.animateText(answerContentElement, answerText, {
+            duration: 0.6,
+            staggerDelay: 0.08,
+            filter: true
+          });
+        } else {
+          // Fallback if TextGenerateEffect isn't loaded
+          answerContentElement.textContent = answerText;
+        }
+        
         attributionElement.classList.remove('hidden');
 
       } catch (error) {

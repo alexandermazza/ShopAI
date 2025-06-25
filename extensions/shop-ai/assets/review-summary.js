@@ -86,6 +86,75 @@ const ReviewSummary = {
     return combinedReviewText;
   },
 
+  // --- Helper to get star rating info as fallback ---
+  getStarRatingInfo() {
+    console.log('ReviewSummary: Looking for star ratings...');
+    
+    // Try Judge.me metafields from Liquid (if available)
+    const productMeta = document.querySelector('[data-judge-me-rating]');
+    if (productMeta) {
+      const rating = productMeta.dataset.judgeMeRating;
+      const count = productMeta.dataset.judgeMeCount;
+      if (rating && count) {
+        const stars = '★'.repeat(Math.floor(parseFloat(rating))) + '☆'.repeat(5 - Math.floor(parseFloat(rating)));
+        return `${stars} ${rating}/5 based on ${count} customer ${count === '1' ? 'review' : 'reviews'}`;
+      }
+    }
+    
+    // Try Judge.me widget elements
+    const judgeMeWidget = document.querySelector('.jdgm-widget');
+    if (judgeMeWidget) {
+      const avgRating = judgeMeWidget.querySelector('.jdgm-avg-rating');
+      const reviewCount = judgeMeWidget.querySelector('.jdgm-num-reviews');
+      if (avgRating && reviewCount) {
+        const rating = avgRating.textContent.trim();
+        const count = reviewCount.textContent.trim();
+        if (rating && count) {
+          const stars = '★'.repeat(Math.floor(parseFloat(rating))) + '☆'.repeat(5 - Math.floor(parseFloat(rating)));
+          return `${stars} ${rating}/5 based on ${count} customer reviews`;
+        }
+      }
+    }
+    
+    // Try native Shopify product reviews
+    const shopifyRating = document.querySelector('.shopify-product-reviews-badges .spr-badge');
+    if (shopifyRating) {
+      const rating = shopifyRating.dataset.rating || shopifyRating.querySelector('.spr-starrating')?.dataset.rating;
+      const count = shopifyRating.dataset.reviewCount || shopifyRating.querySelector('.spr-review-count')?.textContent;
+      if (rating && count) {
+        const stars = '★'.repeat(Math.floor(parseFloat(rating))) + '☆'.repeat(5 - Math.floor(parseFloat(rating)));
+        return `${stars} ${rating}/5 based on ${count} customer reviews`;
+      }
+    }
+    
+    // Try generic star rating selectors
+    const starRating = document.querySelector('.rating, .product-rating, .review-rating');
+    if (starRating) {
+      const ratingText = starRating.textContent.trim();
+      const ratingMatch = ratingText.match(/(\d+\.?\d*)\s*\/?\s*5?/);
+      if (ratingMatch) {
+        const rating = ratingMatch[1];
+        const stars = '★'.repeat(Math.floor(parseFloat(rating))) + '☆'.repeat(5 - Math.floor(parseFloat(rating)));
+        return `${stars} ${rating}/5 customer rating`;
+      }
+    }
+    
+    // Try data attributes on product elements
+    const productElement = document.querySelector('[data-product-rating], [data-rating]');
+    if (productElement) {
+      const rating = productElement.dataset.productRating || productElement.dataset.rating;
+      const count = productElement.dataset.reviewCount || productElement.dataset.ratingCount;
+      if (rating) {
+        const stars = '★'.repeat(Math.floor(parseFloat(rating))) + '☆'.repeat(5 - Math.floor(parseFloat(rating)));
+        const countText = count ? ` based on ${count} reviews` : '';
+        return `${stars} ${rating}/5${countText}`;
+      }
+    }
+    
+    console.log('ReviewSummary: No star rating info found');
+    return null;
+  },
+
   async onMount(containerElement = document) {
     console.log('ReviewSummary: onMount called for container:', containerElement);
     if (!containerElement || containerElement.id !== 'review-summary-block') {
@@ -140,14 +209,34 @@ const ReviewSummary = {
     attributionElement.classList.add('hidden');
 
     if (!scrapedReviews) {
-        // Show error message when no reviews are detected
-        console.log('ReviewSummary: No reviews found, showing error message.');
-        console.log('ReviewSummary: Setting error text and adding error class');
+        // Check for star ratings as fallback
+        console.log('ReviewSummary: No review text found, checking for star ratings...');
+        const starRatingInfo = this.getStarRatingInfo();
+        
+        if (starRatingInfo) {
+            console.log('ReviewSummary: Found star rating info:', starRatingInfo);
+            summaryContentElement.textContent = starRatingInfo;
+            responseArea.classList.remove('loading');
+            responseArea.classList.remove('error');
+            containerElement.classList.add('loaded');
+            attributionElement.classList.remove('hidden');
+            
+            // Use TextGenerateEffect if available
+            if (window.TextGenerateEffect) {
+              TextGenerateEffect.animateText(summaryContentElement, starRatingInfo, {
+                duration: 0.6,
+                staggerDelay: 0.08,
+                filter: true
+              });
+            }
+            return;
+        }
+        
+        // Show error message when no reviews or ratings are detected
+        console.log('ReviewSummary: No reviews or ratings found, showing error message.');
         summaryContentElement.textContent = 'No reviews detected. Reach out to info@shop-ai.co to resolve any issues.';
         responseArea.classList.add('error');
         containerElement.classList.add('loaded');
-        console.log('ReviewSummary: Error message set. Content:', summaryContentElement.textContent);
-        console.log('ReviewSummary: Response area classes:', responseArea.className);
         return;
     }
 
@@ -218,16 +307,23 @@ const ReviewSummary = {
          responseArea.classList.add('error');
       }
 
-      // --- Apply animation if no error ---
-      summaryContentElement.textContent = ''; // Clear before setting
-      summaryContentElement.classList.remove('animate-text-reveal'); // Reset before applying
-
-      summaryContentElement.textContent = summaryText;
-
+      // --- Apply TextGenerateEffect animation if no error ---
       if (!responseArea.classList.contains('error')) {
-        summaryContentElement.classList.add('animate-text-reveal');
+        // Use TextGenerateEffect for animation
+        if (window.TextGenerateEffect) {
+          TextGenerateEffect.animateText(summaryContentElement, summaryText, {
+            duration: 0.6,
+            staggerDelay: 0.1,
+            filter: true
+          });
+        } else {
+          // Fallback if TextGenerateEffect isn't loaded
+          summaryContentElement.textContent = summaryText;
+        }
         attributionElement.classList.remove('hidden');
       } else {
+        // For error cases, just set text directly
+        summaryContentElement.textContent = summaryText;
         attributionElement.classList.add('hidden'); // Hide attribution on error
       }
 

@@ -65,16 +65,18 @@ const SuggestedQuestions = {
     });
     return reviewText;
   },
-  async waitForContextAndReviews(container, timeout = 15000) {
+  async waitForContextAndReviews(container, timeout = 5000) {
     const start = Date.now();
     return new Promise((resolve, reject) => {
       function check() {
         const ctx = container.dataset.productContext;
         const reviews = document.querySelectorAll('.jdgm-rev, .spr-review, .shopify-product-reviews .review');
-        if (ctx && ctx.trim().length > 0 && reviews.length > 0) {
+        
+        // Only require context, reviews are optional
+        if (ctx && ctx.trim().length > 0) {
           resolve({ ctx, reviews });
         } else if (Date.now() - start > timeout) {
-          reject(new Error('Timed out waiting for productContext and reviews'));
+          reject(new Error('Timed out waiting for productContext'));
         } else {
           setTimeout(check, 250);
         }
@@ -155,7 +157,7 @@ const SuggestedQuestions = {
         console.log('SuggestedQuestions: No suggested questions found.');
       }
     } catch (err) {
-      suggestionsContainer.innerHTML = '<span class="error-message">Could not load suggestions (context or reviews missing).</span>';
+      suggestionsContainer.innerHTML = '<span class="error-message">Could not load suggestions (product info missing).</span>';
       console.log('SuggestedQuestions: error:', err);
     }
   }

@@ -168,6 +168,7 @@
   </div>
 {% endif %}
 
+<script src="{{ 'text-generate-effect.js' | asset_url }}" defer></script>
 <script src="{{ 'suggested-questions.min.js' | asset_url }}" defer></script>
 
 <script>
@@ -193,17 +194,16 @@
   }
 }
 
-@keyframes textRevealClipBlurAMA {
-  from {
-    opacity: 0;
-    filter: blur(4px);
-    clip-path: polygon(0 0, 0% 0, 0% 100%, 0 100%); /* Collapsed to the left */
-  }
-  to {
-    opacity: 1;
-    filter: blur(0);
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); /* Fully revealed */
-  }
+/* Text Generate Effect styles */
+.text-generate-wrapper {
+  display: inline;
+}
+
+.text-generate-word {
+  display: inline;
+  opacity: 0;
+  filter: blur(10px);
+  transition: opacity 0.5s ease, filter 0.5s ease;
 }
 
 :root {
@@ -453,14 +453,12 @@
 }
 
 .ai-answer-content {
-  opacity: 0; /* Start transparent by default */
-  display: inline-block; /* Ensures clip-path and opacity work as expected */
+  opacity: 1; /* Always visible - TextGenerateEffect will handle animation */
+  display: inline-block; /* Ensures proper layout */
 }
 
 .ai-answer-content.animate-text-reveal {
-  /* display: inline-block; is now in the base .ai-answer-content style */
-  animation: textRevealClipBlurAMA 0.8s ease-out forwards;
-  animation-delay: 0.1s;
+  /* Animation now handled by TextGenerateEffect JavaScript */
 }
 </style>
 </div>

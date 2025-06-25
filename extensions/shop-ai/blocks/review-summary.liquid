@@ -3,8 +3,18 @@
 {% endcomment %}
 
 {% if block.settings.enable_review_summary %}
+{%- comment -%} Get Judge.me metafield data for fallback star rating {%- endcomment -%}
+{%- assign avg_rating = product.metafields.reviews.rating.value -%}
+{%- assign review_count = product.metafields.reviews.rating_count -%}
+{%- assign rating_scale_max = product.metafields.reviews.rating.value.scale_max | default: 5.0 -%}
+
 <div id="review-summary-block" class="review-summary-container"
-  data-block-settings='{{ block.settings | json }}'>
+  data-block-settings='{{ block.settings | json }}'
+  {% if avg_rating and review_count %}
+    data-judge-me-rating="{{ avg_rating }}"
+    data-judge-me-count="{{ review_count }}"
+    data-rating-scale="{{ rating_scale_max }}"
+  {% endif %}>
   <div class="review-summary-header">
     <span class="summary-icon">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#ai-gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -30,6 +40,8 @@
   </div>
 </div>
 
+<script src="{{ 'text-generate-effect.js' | asset_url }}" defer></script>
+
 <style>
 /* Define the gradient and animations */
 @keyframes shimmer {
@@ -48,17 +60,16 @@
   }
 }
 
-@keyframes textRevealClipBlurReview {
-  from {
-    opacity: 0;
-    filter: blur(4px);
-    clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); /* Collapsed to the top */
-  }
-  to {
-    opacity: 1;
-    filter: blur(0);
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); /* Fully revealed */
-  }
+/* Text Generate Effect styles */
+.text-generate-wrapper {
+  display: inline;
+}
+
+.text-generate-word {
+  display: inline;
+  opacity: 0;
+  filter: blur(10px);
+  transition: opacity 0.5s ease, filter 0.5s ease;
 }
 
 :root {
@@ -150,14 +161,12 @@
 }
 
 .ai-summary-content {
-  opacity: 1; /* Always visible - text content manages what's shown */
-  display: inline-block; /* Ensures clip-path and opacity work as expected */
+  opacity: 1; /* Always visible - TextGenerateEffect will handle animation */
+  display: inline-block; /* Ensures proper layout */
 }
 
 .ai-summary-content.animate-text-reveal {
-  /* display: inline-block; is now in the base .ai-summary-content style */
-  animation: textRevealClipBlurReview 0.8s ease-out forwards;
-  animation-delay: 0.2s;
+  /* Animation now handled by TextGenerateEffect JavaScript */
 }
 
 .review-summary-container.loaded .summary-response-area {
