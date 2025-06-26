@@ -33,6 +33,55 @@ ShopAI is a Shopify Theme App Extension that brings conversational AI and smart 
 
 ---
 
+## Store Customization & Enhanced AI Context
+
+ShopAI provides powerful backend customization options that let store owners enhance their AI responses with rich, personalized context. These features help deliver more accurate, brand-specific answers that truly understand your business.
+
+### Store Information Dashboard
+
+Access the **Store Information** section in your ShopAI admin panel to customize how AI understands your business:
+
+- **Store Description & Mission:** Tell the AI about your brand's story, values, and unique selling proposition
+- **Product Categories & Specialties:** Define your main product categories and areas of expertise
+- **Store Policies:** Add information about shipping, returns, warranties, and customer service policies
+- **Brand Voice & Tone:** Specify how you want the AI to communicate with your customers
+- **Unique Selling Points:** Highlight what makes your products or services special
+- **Customer Demographics:** Help AI understand your target audience for more relevant responses
+
+### How Store Context Improves AI Results
+
+**Before Store Customization:**
+- Generic responses based only on product descriptions
+- Limited understanding of brand personality
+- Unable to answer policy or brand-specific questions
+
+**After Store Customization:**
+- AI incorporates your brand voice and values into every response
+- Answers questions about shipping, returns, and store policies automatically
+- Provides context about product categories and specialties
+- Tailors responses to your specific customer demographic
+- Maintains consistent brand messaging across all interactions
+
+### Examples of Enhanced Responses
+
+**Without Store Context:**
+*"This product has a 30-day return policy."*
+
+**With Store Context:**
+*"At [Your Brand], we stand behind our quality with a hassle-free 30-day return policy. As a family-owned business specializing in sustainable outdoor gear, we want you to be completely satisfied with your purchase. If this jacket doesn't meet your adventure needs, simply contact our customer service team for a quick return process."*
+
+### Getting Started with Customization
+
+1. Install ShopAI from the Shopify App Store
+2. Navigate to **Store Information** in your ShopAI admin panel
+3. Fill out the store details form with your business information
+4. Save your settings—AI responses will immediately become more personalized
+5. Add the Q&A and Review Summary blocks to your product pages using the Theme Editor
+
+The more detailed information you provide, the better ShopAI can represent your brand and answer customer questions with authority and personality.
+
+---
+
 ## Data Handling & Security
 
 - **No PII Storage:** ShopAI does not store or log any customer personal information (PII).
