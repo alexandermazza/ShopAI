@@ -1,4 +1,21 @@
-# 1.6.3 (Latest)
+# 1.6.4 (Latest)
+
+## Product Image Analysis Integration - January 2025
+- **MAJOR ENHANCEMENT**: Integrated OpenAI GPT-4o vision capabilities for comprehensive product image analysis
+- **Feature**: Ask Me Anything widget now analyzes up to 5 product images to extract additional context
+- **Capability**: AI can now read nutritional information, specifications, care instructions, and other details from product images
+- **Use Case**: Customers can ask about information visible in images but not in text descriptions (e.g., "How many calories does this have?" when nutritional info is only in images)
+- **Technical**: 
+  - Enhanced Liquid template to extract and pass product image URLs to frontend
+  - Updated JavaScript to include image URLs in API requests
+  - Modified backend to use GPT-4o (vision-capable) when images are present, fallback to GPT-4o-mini for text-only
+  - Implemented proper URL validation and error handling for image processing
+  - Added detailed prompts instructing AI to analyze images for specifications, ingredients, dimensions, and visual details
+- **Performance**: Automatic model selection (GPT-4o for images, GPT-4o-mini for text-only) optimizes both capability and cost
+- **Reliability**: Graceful fallback when image processing fails, ensuring uninterrupted service
+- **User Experience**: More comprehensive and accurate answers by combining text and visual product information
+
+# 1.6.3
 
 ## Enhanced Text Animation with Aceternity UI Effect - January 2025
 - **ENHANCEMENT**: Replaced text reveal animations with modern word-by-word fade-in effect

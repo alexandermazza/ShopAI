@@ -187,6 +187,26 @@ const AskMeAnything = {
     const productContext = containerElement.dataset.productContext;
     const productId = containerElement.dataset.productId;
     const productUrl = containerElement.dataset.productUrl;
+    const productImages = containerElement.dataset.productImages || '';
+
+    // Parse product images into array
+    const imageUrls = productImages ? productImages.split(',').filter(url => url.trim()) : [];
+    
+    // Add prominent debugging
+    console.log('🔍 === ASK ME ANYTHING IMAGE DEBUG ===');
+    console.log('📄 Raw productImages data:', productImages);
+    console.log('📸 Product images found:', imageUrls.length);
+    if (imageUrls.length > 0) {
+      console.log('🖼️  Image URLs:', imageUrls);
+      // Log each URL individually to avoid truncation
+      imageUrls.forEach((url, index) => {
+        console.log(`🖼️  Image ${index + 1} URL:`, url);
+        console.log(`🖼️  Image ${index + 1} URL length:`, url.length);
+      });
+    } else {
+      console.log('❌ No product images detected - will use text-only mode');
+    }
+    console.log('🔍 === END IMAGE DEBUG ===');
 
     if (!searchInput || !responseArea || !answerContentElement || !attributionElement || !productContext || !productId || !productUrl) {
       if(!searchInput) console.error('>>> searchInput missing');
@@ -230,18 +250,31 @@ const AskMeAnything = {
       const language = containerElement.getAttribute('data-language') || 'en';
 
       try {
-        // --- Call Backend API ---
+        // --- Call Backend API with Image URLs ---
+        const requestPayload = {
+          question: query,
+          productContext: combinedContext,
+          language, // send selected language
+          shop: window.Shopify?.shop || ''
+        };
+
+        // Include image URLs if available
+        if (imageUrls.length > 0) {
+          requestPayload.productImages = imageUrls;
+          console.log('📤 ===== SENDING IMAGES TO AI =====');
+          console.log('📤 Sending', imageUrls.length, 'images for analysis');
+          console.log('📤 Image URLs being sent:', imageUrls);
+          console.log('📤 ===== END IMAGE SEND =====');
+        } else {
+          console.log('📤 No images to send - using text-only analysis');
+        }
+
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            question: query,
-            productContext: combinedContext,
-            language, // send selected language
-            shop: window.Shopify?.shop || ''
-          }),
+          body: JSON.stringify(requestPayload),
         });
 
         // --- Check Response Status ---

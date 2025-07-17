@@ -98,6 +98,19 @@ const SuggestedQuestions = {
     // No need to check again here
 
     const language = containerElement.getAttribute('data-language') || 'en'; // Get language
+    const productImages = containerElement.dataset.productImages || '';
+    const imageUrls = productImages ? productImages.split(',').filter(url => url.trim()) : [];
+
+    // Add prominent debugging  
+    console.log('🔍 === SUGGESTED QUESTIONS IMAGE DEBUG ===');
+    console.log('📄 Raw productImages data:', productImages);
+    console.log('📸 Product images found:', imageUrls.length);
+    if (imageUrls.length > 0) {
+      console.log('🖼️  Image URLs:', imageUrls);
+    } else {
+      console.log('❌ No product images detected for suggestions');
+    }
+    console.log('🔍 === END SUGGESTIONS IMAGE DEBUG ===');
 
     suggestionsContainer.innerHTML = '<span class="loading-message">Loading suggestions...</span>';
     try {
@@ -109,16 +122,30 @@ const SuggestedQuestions = {
 
       console.log('SuggestedQuestions: Combined context length:', combinedContext.length);
       console.log('SuggestedQuestions: Language:', language);
+      console.log('📸 SuggestedQuestions: Product images found:', imageUrls.length);
+
+      const requestPayload = {
+        operation: 'getSuggestedQuestions',
+        productContext: combinedContext,
+        language: language,
+        shop: window.Shopify?.shop || ''
+      };
+
+      // Include image URLs if available
+      if (imageUrls.length > 0) {
+        requestPayload.productImages = imageUrls;
+        console.log('📤 ===== SENDING IMAGES FOR SUGGESTIONS =====');
+        console.log('📤 SuggestedQuestions: Sending', imageUrls.length, 'images for analysis');
+        console.log('📤 Image URLs being sent:', imageUrls);
+        console.log('📤 ===== END SUGGESTIONS IMAGE SEND =====');
+      } else {
+        console.log('📤 SuggestedQuestions: No images to send - using text-only analysis');
+      }
 
       const res = await fetch('/apps/proxy/resource-openai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          operation: 'getSuggestedQuestions',
-          productContext: combinedContext,
-          language: language,
-          shop: window.Shopify?.shop || ''
-        })
+        body: JSON.stringify(requestPayload)
       });
       console.log('SuggestedQuestions: API response status:', res.status);
       if (!res.ok) {

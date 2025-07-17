@@ -8,6 +8,39 @@
   # Example: Basic details. Enhance this with metafields, variant info, etc.
   assign product_json_string = product | json
 
+  # --- Extract Product Images (up to 5 for AI analysis) ---
+  assign product_images = ''
+  assign max_images = 5
+  assign image_count = 0
+  assign image_urls_array = ''
+  
+  if product.images.size > 0
+    for image in product.images
+      if image_count < max_images
+        # Use the modern image_url filter (not deprecated img_url)
+        assign image_url = image | image_url: width: 1024
+        
+        # Ensure we have a fully qualified URL for OpenAI API
+        unless image_url contains 'http'
+          assign image_url = 'https:' | append: image_url
+        endunless
+        
+        assign image_alt = image.alt | default: product.title
+        
+        # Build comma-separated URLs for frontend
+        if image_count == 0
+          assign image_urls_array = image_url
+        else
+          assign image_urls_array = image_urls_array | append: ',' | append: image_url
+        endif
+        
+        # Add to context string
+        assign product_images = product_images | append: 'Image ' | append: image_count | plus: 1 | append: ': ' | append: image_alt | append: ' (' | append: image_url | append: ')' | append: "\n"
+        assign image_count = image_count | plus: 1
+      endif
+    endfor
+  endif
+
   # --- Use capture for context string ---
   capture captured_context
     echo 'Product Title: ' | append: product.title | append: "\n"
@@ -44,6 +77,12 @@
     if product.tags.size > 0
       assign joined_tags = product.tags | join: ', '
       echo 'Tags: ' | append: joined_tags | append: "\n"
+    endif
+
+    # --- Add Product Images Context ---
+    if product_images != blank
+      echo 'Product Images:' | append: "\n"
+      echo product_images
     endif
 
     # --- Add Judge.me Review Summary Metafields ---
@@ -129,6 +168,7 @@
      data-product-context="{{ context_string | escape }}"
      data-product-id="{{ product.id }}"
      data-product-url="{{ shop.url }}{{ product.url }}"
+     data-product-images="{{ image_urls_array | escape }}"
      {% if block.settings.search_border_color != blank %}style="--search-border-color-setting: {{ block.settings.search_border_color }};"{% endif %}
      data-language="{{ block.settings.language }}">
   <form class="ask-me-anything-form">

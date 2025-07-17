@@ -42,6 +42,24 @@ function buildStoreContext(storeInfo: any) {
   return sections.length > 0 ? `\n\nStore Information:\n---\n${sections.join('\n')}\n---\n` : "";
 }
 
+// Helper function to build messages with optional images
+function buildMessagesWithImages(textContent: string, imageUrls: string[] = []) {
+  const content: any[] = [{ type: "text", text: textContent }];
+  
+  // Add images if provided (up to 5)
+  imageUrls.slice(0, 5).forEach(imageUrl => {
+    content.push({
+      type: "image_url",
+      image_url: {
+        url: imageUrl,
+        detail: "high" // Use high detail for better analysis of text and fine details
+      }
+    });
+  });
+
+  return [{ role: "user" as const, content }];
+}
+
 // No default export - this makes it a resource route!
 
 // Action function to handle POST requests
@@ -58,7 +76,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const shopFromUrl = url.searchParams.get('shop') || '';
     
     // Read the potential fields from JSON body
-    const { operation, question, productContext, language, toneOfVoice } = await request.json();
+    const { operation, question, productContext, language, toneOfVoice, productImages } = await request.json();
 
     // Get store information - shop comes from URL query params in App Proxy
     const shopDomain = shopFromUrl || request.headers.get('x-shop-domain') || '';
@@ -71,6 +89,25 @@ export async function action({ request }: ActionFunctionArgs) {
     console.log("🏪 Store context length:", storeContext.length);
     if (storeContext.length > 0) {
       console.log("📋 Store context:", storeContext);
+    }
+
+    // Process product images for AI analysis
+    const imageUrls = Array.isArray(productImages) ? productImages.slice(0, 5) : [];
+    console.log("📸 Product images received:", imageUrls.length);
+
+    // Validate image URLs (basic check for valid URLs)
+    const validImageUrls = imageUrls.filter(url => {
+      try {
+        new URL(url);
+        return url.startsWith('http') || url.startsWith('https');
+      } catch {
+        console.warn("📸 Invalid image URL detected and filtered:", url);
+        return false;
+      }
+    });
+    
+    if (validImageUrls.length !== imageUrls.length) {
+      console.log("📸 Filtered to", validImageUrls.length, "valid image URLs");
     }
 
     // --- VALIDATION ---
@@ -109,13 +146,17 @@ export async function action({ request }: ActionFunctionArgs) {
       // --- GENERATE SUGGESTED QUESTIONS ---
       console.log("📤 Operation: getSuggestedQuestions");
       
+      const hasImages = validImageUrls.length > 0;
+      const imageAnalysisNote = hasImages ? 
+        `\n\nIMPORTANT: I have also provided ${validImageUrls.length} product image(s) for analysis. Please examine these images for details like nutritional information, specifications, ingredients, care instructions, or other details that might not be mentioned in the text description. Include questions about information visible in the images.` : '';
+      
       const prompt = `
         Generate exactly 3 distinct, concise questions that customers might ask about this product and store. Make the questions short, clickable, and relevant.
 
         IMPORTANT: Look at both the Product Information AND Store Information sections. Include questions about:
         - Product features, specifications, or details
         - Store policies (shipping, returns, warranties) if available
-        - Services or support if mentioned
+        - Services or support if mentioned${imageAnalysisNote}
 
         Format: One question per line, no numbering, no quotes, no prefixes.
 
@@ -128,10 +169,13 @@ export async function action({ request }: ActionFunctionArgs) {
       `;
       
       console.log("📤 Sending prompt to OpenAI for suggested questions with", prompt.length, "characters");
+      console.log("📸 Including", validImageUrls.length, "images in suggested questions");
+      
+      const messages = buildMessagesWithImages(prompt, validImageUrls);
       
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini", 
-        messages: [{ role: "user", content: prompt }],
+        model: hasImages ? "gpt-4o" : "gpt-4o-mini", // Use gpt-4o for vision capabilities
+        messages: messages,
         temperature: 0.7,
         max_tokens: 600, // Increased to handle comprehensive store context in suggestions
       });
@@ -154,6 +198,7 @@ export async function action({ request }: ActionFunctionArgs) {
       console.log("📤 Operation: answerQuestion (default)");
       console.log("🔍 Question asked:", question);
       console.log("📋 Product context length:", productContext?.length || 0);
+      console.log("📸 Including", validImageUrls.length, "images for analysis");
       
       // Validate required 'question' field for this operation
       if (!question) {
@@ -163,6 +208,19 @@ export async function action({ request }: ActionFunctionArgs) {
       if (question.length > MAX_QUESTION_LENGTH) {
           return json({ error: `Question exceeds maximum length of ${MAX_QUESTION_LENGTH} characters.` }, { status: 400 });
       }
+
+      const hasImages = validImageUrls.length > 0;
+      const imageAnalysisNote = hasImages ? 
+        `\n\nIMAGE ANALYSIS: I have provided ${validImageUrls.length} product image(s) for you to analyze. Please examine these images carefully for details such as:
+        - Nutritional information, ingredients, or dietary specifications
+        - Product dimensions, measurements, or size information  
+        - Care instructions, usage guidelines, or warnings
+        - Technical specifications, model numbers, or certifications
+        - Visual features, colors, textures, or design details
+        - Any text, labels, or annotations visible in the images
+        - Packaging information or included accessories
+        
+        Use information from the images to provide more complete and accurate answers. If the question relates to something visible in the images, prioritize that visual information.` : '';
 
       const prompt = `
         You are a helpful product specialist for an online store. Your primary goal is to provide accurate, helpful answers using the information provided below.
@@ -174,7 +232,7 @@ export async function action({ request }: ActionFunctionArgs) {
         - If the information exists in either section, provide it directly and confidently
         - Only say you don't have information if it's truly not provided in either section
         - Be specific, helpful, and reference the actual policies/information provided
-        - When referring to "this product" or "it", use the product context provided
+        - When referring to "this product" or "it", use the product context provided${imageAnalysisNote}
         
         FORMATTING RULES:
         - Keep responses concise and conversational (2-3 sentences max)
@@ -194,9 +252,11 @@ export async function action({ request }: ActionFunctionArgs) {
 
       console.log("📤 Sending prompt to OpenAI for answer with", prompt.length, "characters");
 
+      const messages = buildMessagesWithImages(prompt, validImageUrls);
+
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
+        model: hasImages ? "gpt-4o" : "gpt-4o-mini", // Use gpt-4o for vision capabilities
+        messages: messages,
         temperature: 0.3, // Reduced for more consistent responses
         max_tokens: 900, // Significantly increased to handle comprehensive store context
       });
