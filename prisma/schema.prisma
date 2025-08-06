@@ -46,3 +46,14 @@ model StoreInformation {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+
+model CustomerQuestion {
+  id       String   @id @default(cuid())
+  shop     String
+  question String
+  askedAt  DateTime @default(now())
+  times    Int      @default(1)
+
+  @@unique([shop, question])
+  @@index([shop, askedAt])
+}

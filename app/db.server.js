@@ -26,3 +26,6 @@ prisma.$connect()
   });
 
 export default prisma;
+
+// Named export for compatibility with webhook imports
+export { prisma };

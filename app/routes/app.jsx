@@ -82,7 +82,7 @@ export default function App() {
           </Link>
           <Link to="/app/store-information">Store Information</Link>
           <Link to="/app/store-context">Store Context</Link>
-          <Link to="/app/additional">Additional</Link>
+          <Link to="/app/dashboard">Dashboard</Link>
         </NavMenu>
         <Outlet />
       </AppProvider>

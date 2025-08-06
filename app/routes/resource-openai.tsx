@@ -42,17 +42,32 @@ function buildStoreContext(storeInfo: any) {
   return sections.length > 0 ? `\n\nStore Information:\n---\n${sections.join('\n')}\n---\n` : "";
 }
 
+// Helper function to determine if question needs vision analysis
+function requiresVision(question: string) {
+  const visionKeywords = [
+    'color', 'size', 'dimension', 'look', 'appear', 'see', 'show', 'visual',
+    'nutritional', 'nutrition', 'ingredient', 'label', 'package', 'packaging',
+    'measurement', 'weight', 'height', 'width', 'length', 'calories',
+    'specification', 'spec', 'instruction', 'warning', 'image', 'picture',
+    'care', 'wash', 'clean', 'material', 'fabric', 'texture'
+  ];
+  
+  const questionLower = question.toLowerCase();
+  return visionKeywords.some(keyword => questionLower.includes(keyword));
+}
+
 // Helper function to build messages with optional images
 function buildMessagesWithImages(textContent: string, imageUrls: string[] = []) {
   const content: any[] = [{ type: "text", text: textContent }];
   
-  // Add images if provided (up to 5)
-  imageUrls.slice(0, 5).forEach(imageUrl => {
+  // Limit to 5 images
+  const maxImages = 5;
+  imageUrls.slice(0, maxImages).forEach(imageUrl => {
     content.push({
       type: "image_url",
       image_url: {
         url: imageUrl,
-        detail: "high" // Use high detail for better analysis of text and fine details
+        detail: "high" // Always use high detail for consistent quality
       }
     });
   });
@@ -147,7 +162,14 @@ export async function action({ request }: ActionFunctionArgs) {
       console.log("📤 Operation: getSuggestedQuestions");
       
       const hasImages = validImageUrls.length > 0;
-      const imageAnalysisNote = hasImages ? 
+      // For suggested questions, be more conservative with vision - only use if product likely has visual specs
+      const hasVisualContext = productContext.toLowerCase().includes('nutrition') || 
+                               productContext.toLowerCase().includes('ingredient') ||
+                               productContext.toLowerCase().includes('specification') ||
+                               productContext.toLowerCase().includes('dimension');
+      const useVisionForSuggestions = hasImages && hasVisualContext;
+      
+      const imageAnalysisNote = useVisionForSuggestions ? 
         `\n\nIMPORTANT: I have also provided ${validImageUrls.length} product image(s) for analysis. Please examine these images for details like nutritional information, specifications, ingredients, care instructions, or other details that might not be mentioned in the text description. Include questions about information visible in the images.` : '';
       
       const prompt = `
@@ -169,15 +191,15 @@ export async function action({ request }: ActionFunctionArgs) {
       `;
       
       console.log("📤 Sending prompt to OpenAI for suggested questions with", prompt.length, "characters");
-      console.log("📸 Including", validImageUrls.length, "images in suggested questions");
+      console.log("📸 Using vision for suggestions:", useVisionForSuggestions, "| Including", useVisionForSuggestions ? validImageUrls.length : 0, "images");
       
-      const messages = buildMessagesWithImages(prompt, validImageUrls);
+              const messages = buildMessagesWithImages(prompt, useVisionForSuggestions ? validImageUrls : []);
       
       const completion = await openai.chat.completions.create({
-        model: hasImages ? "gpt-4o" : "gpt-4o-mini", // Use gpt-4o for vision capabilities
+        model: useVisionForSuggestions ? "gpt-4o" : "gpt-4.1-nano-2025-04-14", // GPT-4o for vision, GPT-4.1 nano for text
         messages: messages,
         temperature: 0.7,
-        max_tokens: 600, // Increased to handle comprehensive store context in suggestions
+        max_tokens: 400, // Reduced from 600 for cost optimization
       });
 
       console.log("📥 Received response from OpenAI for suggested questions:", completion.choices[0]?.message?.content);
@@ -209,8 +231,57 @@ export async function action({ request }: ActionFunctionArgs) {
           return json({ error: `Question exceeds maximum length of ${MAX_QUESTION_LENGTH} characters.` }, { status: 400 });
       }
 
+      // Store question for analytics (non-blocking)
+      try {
+        console.log("💾 Attempting to log question for shop:", shopDomain);
+        if (shopDomain && question) {
+          // Less aggressive normalization - keep punctuation but normalize case and whitespace
+          const normalizedQuestion = question.trim().toLowerCase().replace(/\s+/g, " ");
+          console.log("💾 Original question:", question);
+          console.log("💾 Normalized question:", normalizedQuestion);
+
+          if (normalizedQuestion && normalizedQuestion.length > 0) {
+            console.log("💾 Executing upsert for:", { shop: shopDomain, question: normalizedQuestion });
+            
+            // Use correct Prisma syntax for compound unique constraint
+            await prisma.customerQuestion.upsert({
+              where: { 
+                shop_question: { 
+                  shop: shopDomain, 
+                  question: normalizedQuestion 
+                } 
+              },
+              update: { 
+                times: { increment: 1 },
+                askedAt: new Date() // Update the timestamp too
+              },
+              create: { 
+                shop: shopDomain, 
+                question: normalizedQuestion 
+              },
+            });
+            console.log("💾 ✅ Question stored successfully for shop:", shopDomain);
+          } else {
+            console.warn("💾 ⚠️ Normalized question is empty. Skipping storage.");
+          }
+        } else {
+          console.warn("💾 ⚠️ Missing shop domain or question. Skipping storage.");
+        }
+      } catch (dbError) {
+        console.error("💾 ❌ DATABASE ERROR while recording question:", dbError);
+        console.error("💾 Error details:", {
+          message: dbError instanceof Error ? dbError.message : String(dbError),
+          code: (dbError as any)?.code || 'unknown',
+          stack: dbError instanceof Error ? dbError.stack : undefined
+        });
+        // Do not block the user's request if logging fails
+      }
+
+      const needsVision = requiresVision(question);
       const hasImages = validImageUrls.length > 0;
-      const imageAnalysisNote = hasImages ? 
+      const useVision = hasImages && needsVision;
+      
+      const imageAnalysisNote = useVision ? 
         `\n\nIMAGE ANALYSIS: I have provided ${validImageUrls.length} product image(s) for you to analyze. Please examine these images carefully for details such as:
         - Nutritional information, ingredients, or dietary specifications
         - Product dimensions, measurements, or size information  
@@ -251,14 +322,19 @@ export async function action({ request }: ActionFunctionArgs) {
       `;
 
       console.log("📤 Sending prompt to OpenAI for answer with", prompt.length, "characters");
+      console.log("🧠 Vision needed:", needsVision, "| Has images:", hasImages, "| Using vision:", useVision);
+      console.log("📝 Question for vision analysis:", question);
+      console.log("🤖 Selected model:", useVision ? "gpt-4o" : "gpt-4.1-nano-2025-04-14");
+      
+      // Always use high detail for consistent quality when using vision
 
-      const messages = buildMessagesWithImages(prompt, validImageUrls);
+      const messages = buildMessagesWithImages(prompt, useVision ? validImageUrls : []);
 
       const completion = await openai.chat.completions.create({
-        model: hasImages ? "gpt-4o" : "gpt-4o-mini", // Use gpt-4o for vision capabilities
+        model: useVision ? "gpt-4o" : "gpt-4.1-nano-2025-04-14", // GPT-4o for vision, GPT-4.1 nano for text
         messages: messages,
         temperature: 0.3, // Reduced for more consistent responses
-        max_tokens: 900, // Significantly increased to handle comprehensive store context
+        max_tokens: 600, // Reduced from 900 for cost optimization
       });
 
       console.log("📥 Received response from OpenAI for answer:", completion.choices[0]?.message?.content);

@@ -238,7 +238,7 @@ const AskMeAnything = {
       const combinedContext = `${productContext}\n${fetchedReviews}`;
 
       // --- Show Loading State & Clear Previous Answer ---
-      answerContentElement.textContent = ''; // Clear previous answer immediately
+      answerContentElement.textContent = 'Thinking...'; // Show thinking text with shimmer
       responseArea.classList.remove('error');
       responseArea.classList.add('loading'); // Keep loading state for now
       responseArea.classList.add('visible');
@@ -246,7 +246,7 @@ const AskMeAnything = {
       searchInput.disabled = true;
 
       // Use the App Proxy path
-      const apiUrl = '/apps/proxy/resource-openai';
+      const apiUrl = '/api/resource-openai';
       const language = containerElement.getAttribute('data-language') || 'en';
 
       try {

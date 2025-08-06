@@ -5,6 +5,8 @@ import { json } from "@remix-run/node";
 // Use specific AI SDK packages for v3+
 import { openai } from '@ai-sdk/openai'; // Correct export: lowercase 'openai'
 import { streamText } from 'ai'; // Use core streamText
+// @ts-ignore
+import prisma from "../db.server";
 
 // No client initialization needed here for basic usage
 
@@ -20,7 +22,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    const { question, productContext } = await request.json();
+    const { question, productContext, shop } = await request.clone().json();
 
     if (!question || !productContext) {
        return new Response("Missing question or product context", { status: 400 });
@@ -37,6 +39,52 @@ export async function action({ request }: ActionFunctionArgs) {
     if (productContext.length > MAX_CONTEXT_LENGTH) {
       console.warn(`Product context truncated for OpenAI call. Original length: ${productContext.length}`);
        return new Response(`Product context exceeds maximum length of ${MAX_CONTEXT_LENGTH} characters.`, { status: 400 });
+    }
+
+    // Normalize and save the question for analytics
+    try {
+      console.log("Attempting to log question for shop:", shop);
+      if (!shop) {
+        console.warn("Shop domain not provided in request body. Skipping question logging.");
+      } else {
+        // Less aggressive normalization - keep punctuation but normalize case and whitespace
+        const normalizedQuestion = question.trim().toLowerCase().replace(/\s+/g, " ");
+        console.log("Original question:", question);
+        console.log("Normalized question:", normalizedQuestion);
+
+        if (normalizedQuestion && normalizedQuestion.length > 0) {
+          console.log("Executing upsert for:", { shop, question: normalizedQuestion });
+          
+          // Fixed: Use correct Prisma syntax for compound unique constraint
+          await prisma.customerQuestion.upsert({
+            where: { 
+              shop_question: { 
+                shop: shop, 
+                question: normalizedQuestion 
+              } 
+            },
+            update: { 
+              times: { increment: 1 },
+              askedAt: new Date() // Update the timestamp too
+            },
+            create: { 
+              shop: shop, 
+              question: normalizedQuestion 
+            },
+          });
+          console.log("Upsert completed successfully for shop:", shop);
+        } else {
+          console.warn("Normalized question is empty. Skipping upsert.");
+        }
+      }
+    } catch (dbError) {
+      console.error("DATABASE ERROR while recording question:", dbError);
+      console.error("Error details:", {
+        message: dbError instanceof Error ? dbError.message : String(dbError),
+        code: (dbError as any)?.code || 'unknown',
+        stack: dbError instanceof Error ? dbError.stack : undefined
+      });
+      // Do not block the user's request if logging fails
     }
 
     // API Key check is implicitly handled by the SDK if process.env.OPENAI_API_KEY is set

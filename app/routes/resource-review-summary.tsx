@@ -76,7 +76,7 @@ Very Concise Summary (2-3 sentences):`;
 
     // --- Use NON-STREAMING method like in resource-openai.tsx ---
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Keep model consistent for now
+      model: "gpt-4.1-nano-2025-04-14", // Use GPT-4.1 nano for review summaries (text-only, cheaper)
       messages: [{
         role: "user",
         content: prompt
