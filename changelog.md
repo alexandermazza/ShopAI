@@ -1,4 +1,54 @@
-# 1.6.9 (Latest)
+### 2.1.0 - 2025-08-07
+- Feature: Integrated `gpt-5-mini-2025-08-07` across the application for enhanced AI capabilities, replacing older models.
+- Chore: Refactored OpenAI API calls to standardize on the new `gpt-5-mini-2025-08-07` model.
+
+# 1.8.0 (Latest)
+
+## Major Cost Optimization: GPT-5 Nano Upgrade - January 2025
+- **🚀 MASSIVE COST SAVINGS**: Upgraded all AI models to GPT-5 Nano ($0.05 input, $0.40 output per million tokens)
+- **🎯 SIMPLIFIED ARCHITECTURE**: Single multimodal model replaces complex text/vision model selection logic
+- **⚡ ENHANCED CAPABILITIES**: GPT-5 Nano handles both text and image analysis with 400,000 token context window
+- **💰 COST REDUCTION**: Dramatically reduced API costs while maintaining or improving quality
+- **🔧 MODEL CONSOLIDATION**: 
+  - Replaced GPT-4.1 nano (text-only operations)
+  - Replaced GPT-4o/GPT-4o-mini (vision operations)
+  - Unified all routes to use single GPT-5 Nano model
+- **📈 OPTIMIZED ROUTES**: Updated ask-openai.tsx, resource-openai.tsx, api.resource-openai.tsx, resource-review-summary.tsx, and app.setup-assistant.tsx
+- **🎨 SIMPLIFIED LOGIC**: Removed complex conditional vision/text model selection since GPT-5 Nano is multimodal
+- **🔧 COMPATIBILITY FIXES**: 
+  - Updated model name to correct `gpt-5-nano`
+  - Changed `max_tokens` to `max_completion_tokens` for GPT-5 compatibility
+  - Removed custom `temperature` parameters (GPT-5 Nano only supports default temperature of 1)
+  - Fixed API parameter compatibility issues
+- **⚙️ FUTURE-PROOF**: Positioned for continued cost optimization with latest OpenAI technology
+
+# 1.7.1
+
+## Page View Tracking Fix & Chart Improvements - August 2025
+- **FIXED PAGE VIEW TRACKING**: Created proper app proxy routes for page view tracking API endpoint
+- **APP PROXY ROUTES**: Added `apps.proxy.api.page-view-tracking.tsx` route to handle Shopify app proxy requests
+- **DASHBOARD ANALYTICS**: Page view tracking now working correctly, enabling dashboard graph population
+- **ROUTE STRUCTURE**: Fixed routing to support `/apps/proxy/` prefix required by Shopify app proxy
+- **DATABASE**: Added migration to create `ProductPageView` table with `(shop, viewedAt)` index
+- **IMPROVED DATE FORMATTING**: Chart labels and tooltips now display readable dates (e.g., "Aug 6 2025" instead of "2025-08-06")
+- **ENHANCED TOOLTIPS**: Custom tooltip formatting for both Questions and Page Views charts with proper labeling
+- **CHART STYLING**: Updated chart backgrounds to clean white and axis text to black for better readability
+- **DEPLOYMENT**: Successfully deployed tracking fix to production environment
+
+# 1.7.0
+
+## Referral Tracking System - January 2025
+- **REFERRAL SYSTEM**: Simplified plan system to focus on referral code capture and attribution
+- **SHOPIFY PLAN INTEGRATION**: Updated to use actual Shopify plan names (e.g., "Free Plan", "Pro Plan") instead of generic ones
+- **REFERRAL CODE PAGE**: Dedicated "Referral Code" page for merchants to submit referral attribution
+- **DASHBOARD INTEGRATION**: "Current Plan" card shows actual plan name, usage, and referral status
+- **ADMIN TOOLS**: Referral payout management page for tracking stores needing payouts
+- **DATABASE SCHEMA**: Extended StoreInformation model with referral tracking fields
+- **USAGE TRACKING**: Question count tracking without limits (unlimited until usage-based pricing implemented)
+- **NAVIGATION**: Added "Referral Code" link to navigation and "Add Referral Code" button in dashboard
+- **FUTURE-READY**: Foundation prepared for usage-based pricing when Shopify billing integration is added
+
+# 1.6.9
 
 ## Dashboard UI Overhaul & Fixes - January 2025
 - **BEAUTIFUL POLARIS DESIGN**: Completely rebuilt dashboard using Shopify's official Polaris design system
@@ -236,3 +286,12 @@ Started tracking changes and releases using calver
 
 ## Previous Changes
 - [Add your previous changelog entries here]
+
+### 2.1.0 - 2025-08-07
+- Feature: Integrated `gpt-5-mini-2025-08-07` across the application for enhanced AI capabilities, replacing older models.
+- Chore: Refactored OpenAI API calls to standardize on the new `gpt-5-mini-2025-08-07` model.
+
+### 2.0.0 - 2025-08-06
+- Major Feature: Added plan management and usage tracking for customer questions.
+- API: New endpoint `incrementQuestionCount` to enforce plan limits.
+- UI: Added UI components for plan selection and upgrade.

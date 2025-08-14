@@ -129,41 +129,7 @@ export async function verifyShopifyHmac(request: Request, secret: string): Promi
 }
 
 /**
- * Registers all mandatory compliance webhooks for a given shop and access token.
- * Call this after app installation or shop onboarding.
- */
-export async function registerMandatoryWebhooks({ shop, accessToken, appUrl }: { shop: string; accessToken: string; appUrl: string; }) {
-  const topics = [
-    "APP_UNINSTALLED",
-    "SHOP_REDACT",
-    "CUSTOMERS_DATA_REQUEST",
-    "CUSTOMERS_REDACT",
-  ];
-  const endpoints = {
-    APP_UNINSTALLED: "/webhooks.app.uninstalled",
-    SHOP_REDACT: "/webhooks.shop.redact",
-    CUSTOMERS_DATA_REQUEST: "/webhooks.customers.data_request",
-    CUSTOMERS_REDACT: "/webhooks.customers.redact",
-  };
-  for (const topic of topics) {
-    const response = await fetch(`https://${shop}/admin/api/${LATEST_API_VERSION}/webhooks.json`, {
-      method: "POST",
-      headers: {
-        "X-Shopify-Access-Token": accessToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        webhook: {
-          topic,
-          address: `${appUrl}${endpoints[topic as keyof typeof endpoints]}`,
-          format: "json",
-        },
-      }),
-    });
-    if (!response.ok) {
-      console.error(`[Webhook Registration] Failed to register webhook for topic ${topic}:`, await response.text());
-    } else {
-      console.log(`[Webhook Registration] Registered webhook for topic ${topic}`);
-    }
-  }
-} 
+ * Note: All webhooks are now configured via shopify.app.toml
+ * This function has been deprecated in favor of TOML-based configuration
+ * which handles all mandatory compliance webhooks automatically.
+ */ 

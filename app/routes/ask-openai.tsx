@@ -1,9 +1,8 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import OpenAI from "openai";
-import { authenticate } from "../shopify.server.js";
-// @ts-ignore - db.server.js is a JavaScript file
-import prisma from "../db.server.js";
+import { authenticate } from "~/shopify.server";
+import { prisma } from "~/db.server";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -57,7 +56,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const buildStoreContext = () => {
     if (!storeInfo) return "";
     
-    const storeContext = [];
+    const storeContext: string[] = [];
     if (storeInfo.storeName) storeContext.push(`Store Name: ${storeInfo.storeName}`);
     if (storeInfo.storeDescription) storeContext.push(`Store Description: ${storeInfo.storeDescription}`);
     if (storeInfo.shippingPolicy) storeContext.push(`Shipping Policy: ${storeInfo.shippingPolicy}`);
@@ -250,7 +249,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const messages = buildMessagesWithImages(prompt, useVisionForSuggestions ? selectedImagesForSuggestions : []);
       
       const completion = await openai.chat.completions.create({
-        model: useVisionForSuggestions ? "gpt-4o-mini" : "gpt-4.1-nano-2025-04-14", // GPT-4o-mini for vision, GPT-4.1 nano for text
+        model: useVisionForSuggestions ? "gpt-5-mini-2025-08-07" : "gpt-5-mini-2025-08-07", // GPT-5 mini for all
         messages: messages,
         temperature: 0.7,
         max_tokens: 400, // Reduced from 800 for cost optimization
@@ -343,7 +342,7 @@ export async function action({ request }: ActionFunctionArgs) {
       console.log("🔍 Question asked:", question);
       console.log("🧠 Vision needed:", needsVision, "| Has images:", hasImages, "| Using vision:", useVision);
       console.log("📝 Question for vision analysis:", question);
-      console.log("🤖 Selected model:", useVision ? "gpt-4o-mini" : "gpt-4.1-nano-2025-04-14");
+      console.log("🤖 Selected model:", useVision ? "gpt-5-mini-2025-08-07" : "gpt-5-mini-2025-08-07");
       console.log("📋 Product context length:", productContext?.length || 0);
       console.log("🏪 Store context length:", storeContext?.length || 0);
       console.log("📸 Including", useVision ? selectedImages.length : 0, "images for analysis");
@@ -352,7 +351,7 @@ export async function action({ request }: ActionFunctionArgs) {
       
       const messages = buildMessagesWithImages(prompt, useVision ? selectedImages : []);
       
-      const selectedModel = useVision ? "gpt-4o-mini" : "gpt-4.1-nano-2025-04-14"; // Use full GPT-4o for better vision, GPT-4.1 nano for text
+      const selectedModel = useVision ? "gpt-5-mini-2025-08-07" : "gpt-5-mini-2025-08-07"; // Use GPT-5 mini for all
       console.log("🤖 SELECTED MODEL:", selectedModel);
       console.log("📸 IMAGE COUNT:", useVision ? selectedImages.length : 0);
       console.log("🔍 ALWAYS USING HIGH DETAIL FOR CONSISTENT QUALITY");

@@ -76,6 +76,7 @@ Very Concise Summary (2-3 sentences):`;
 
     // --- Use NON-STREAMING method like in resource-openai.tsx ---
     const completion = await openai.chat.completions.create({
+<<<<<<< Updated upstream:app/routes/resource-review-summary.tsx
       model: "gpt-4.1-nano-2025-04-14", // Use GPT-4.1 nano for review summaries (text-only, cheaper)
       messages: [{
         role: "user",
@@ -83,6 +84,11 @@ Very Concise Summary (2-3 sentences):`;
       }],
       temperature: 0.7,
       max_tokens: 400, // Increased for more comprehensive review summaries
+=======
+      model: "gpt-4.1-nano-2025-04-14",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 220,
+>>>>>>> Stashed changes:shop-ai/app/routes/resource-review-summary.tsx
     });
     // --- END NON-STREAMING TEST ---
 

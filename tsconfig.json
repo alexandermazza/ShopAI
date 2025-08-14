@@ -1,18 +1,31 @@
 {
-  "include": ["env.d.ts", "app/**/*.ts", "app/**/*.tsx"],
-  "exclude": ["node_modules", "build", "dist", ".turbo", ".next", ".cache"],
+  "include": [
+    "remix.env.d.ts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
   "compilerOptions": {
-    "lib": ["DOM", "ES2022"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ES2022"
+    ],
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "target": "ES2022",
+    "strict": true,
+    "allowJs": true,
+    "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./app/*"]
+      "~/*": [
+        "app/*"
+      ]
     },
-    "strict": true,
     "skipLibCheck": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-    "module": "NodeNext",
-    "target": "ES2022",
-    "moduleResolution": "nodenext"
+    "noEmit": true
   }
 }

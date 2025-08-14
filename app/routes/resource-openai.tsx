@@ -2,8 +2,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import OpenAI from "openai";
-// @ts-ignore - db.server.js is a JavaScript file
-import prisma from "../db.server.js";
+import { prisma } from "~/db.server";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -27,7 +26,7 @@ async function getStoreInformation(shop: string) {
 function buildStoreContext(storeInfo: any) {
   if (!storeInfo) return "";
   
-  const sections = [];
+  const sections: string[] = [];
   
   if (storeInfo.storeName) sections.push(`Store Name: ${storeInfo.storeName}`);
   if (storeInfo.storeDescription) sections.push(`About Our Store: ${storeInfo.storeDescription}`);

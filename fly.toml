@@ -9,7 +9,12 @@ primary_region = 'ord'
 [build]
 
 [deploy]
+<<<<<<< Updated upstream:fly.toml
   release_command = "npx prisma migrate deploy"
+=======
+  # Auto-resolve previously failed migration (idempotent) before deploying new ones
+  release_command = "sh -lc 'npx prisma migrate resolve --applied 20250813153000_add_product_page_view_table || true; npx prisma migrate deploy'"
+>>>>>>> Stashed changes:shop-ai/fly.toml
 
 [env]
   PORT = '3000'

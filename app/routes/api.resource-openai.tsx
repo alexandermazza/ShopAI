@@ -1,14 +1,10 @@
 // shop-ai/app/routes/api.resource-openai.tsx - Pure resource route file
 import type { ActionFunctionArgs } from "@remix-run/node";
-// Use json from remix, use global Response
 import { json } from "@remix-run/node";
-// Use specific AI SDK packages for v3+
-import { openai } from '@ai-sdk/openai'; // Correct export: lowercase 'openai'
-import { streamText } from 'ai'; // Use core streamText
-// @ts-ignore
-import prisma from "../db.server";
-
-// No client initialization needed here for basic usage
+import { openai } from '@ai-sdk/openai';
+import { streamText } from 'ai';
+import { prisma } from "~/db.server";
+import { incrementQuestionCount } from "~/utils/plan-management.server";
 
 // No default export - this makes it a resource route!
 
@@ -87,11 +83,25 @@ export async function action({ request }: ActionFunctionArgs) {
       // Do not block the user's request if logging fails
     }
 
-    // API Key check is implicitly handled by the SDK if process.env.OPENAI_API_KEY is set
-    // Or you can pass it explicitly in the model call if needed
-    // if (!process.env.OPENAI_API_KEY) {
-    //   return new Response("OpenAI API key not configured", { status: 500 });
-    // }
+    // Check plan limits before making OpenAI API call
+    try {
+      if (shop) {
+        const usageCheck = await incrementQuestionCount(shop);
+        if (!usageCheck.allowed) {
+          return new Response(JSON.stringify({
+            error: "Plan limit exceeded",
+            message: "Monthly question limit reached. Please upgrade your plan."
+          }), { 
+            status: 429, 
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+        console.log(`Usage check passed. Remaining: ${usageCheck.remaining}`);
+      }
+    } catch (usageError) {
+      console.error("Error checking usage limits:", usageError);
+      // Continue with request if usage check fails to avoid blocking users
+    }
 
     const prompt = `You are a product specialist for an online store. Your job is to answer customer questions with clarity, confidence, and a touch of marketing flair.
     You may make reasonable inferences based on the product details provided. Use context clues, related attributes, and common product knowledge to fill in gaps if necessary.
@@ -114,20 +124,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
     Answer:`;
 
-    // Use streamText, passing the provider function directly for the model
     const result = await streamText({
-      // Call the imported openai function with just the model ID
-      model: openai('gpt-4o-mini'), 
+      model: openai('gpt-5-mini-2025-08-07'),
       prompt: prompt,
-      // Pass temperature and maxTokens directly to streamText
-      temperature: 0.9,
-      maxTokens: 180,
     });
 
-    // Return a global Response object with the stream
-    return new Response(result.toDataStream(), {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' }, // Set appropriate content type
-    });
+    return new Response(result.textStream);
 
   } catch (error) {
     console.error("Error in resource-openai route:", error);
@@ -146,5 +148,5 @@ export async function action({ request }: ActionFunctionArgs) {
 // Keep this as JSON response
 export async function loader() {
   console.log("RESOURCE-OPENAI GET REQUEST!");
-  return json({ status: "OpenAI API endpoint is operational (streaming v4 - Direct Provider)" });
+  return json({ status: "OpenAI API endpoint is operational (Direct OpenAI Streaming)" });
 } 

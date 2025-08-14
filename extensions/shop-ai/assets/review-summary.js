@@ -155,6 +155,56 @@ const ReviewSummary = {
     return null;
   },
 
+<<<<<<< Updated upstream:extensions/shop-ai/assets/review-summary.js
+=======
+  // Track product page view when review summary is activated
+  async trackPageView() {
+    try {
+      // Get shop domain from window.Shopify if available
+      let shop = null;
+      if (window.Shopify && window.Shopify.shop) {
+        shop = window.Shopify.shop;
+      } else {
+        // Fallback: try to extract from location
+        shop = window.location.hostname;
+      }
+
+      // Get product ID if available
+      let productId = null;
+      if (window.ShopifyAnalytics && window.ShopifyAnalytics.meta && window.ShopifyAnalytics.meta.product) {
+        productId = window.ShopifyAnalytics.meta.product.id?.toString();
+      } else if (window.meta && window.meta.product) {
+        productId = window.meta.product.id?.toString();
+      }
+
+      if (!shop) {
+        console.warn('ReviewSummary: Unable to determine shop for page view tracking');
+        return;
+      }
+
+      // Send tracking data to API
+      const response = await fetch('/apps/proxy/api/page-view-tracking', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shop: shop,
+          productId: productId,
+        }),
+      });
+
+      if (response.ok) {
+        console.log('ReviewSummary: Page view tracked successfully');
+      } else {
+        console.warn('ReviewSummary: Failed to track page view:', response.status);
+      }
+    } catch (error) {
+      console.warn('ReviewSummary: Error tracking page view:', error);
+    }
+  },
+
+>>>>>>> Stashed changes:shop-ai/extensions/shop-ai/assets/review-summary.js
   async onMount(containerElement = document) {
     console.log('ReviewSummary: onMount called for container:', containerElement);
     if (!containerElement || containerElement.id !== 'review-summary-block') {
@@ -162,6 +212,12 @@ const ReviewSummary = {
         return;
     }
     console.log('ReviewSummary: Container validated, proceeding with initialization');
+<<<<<<< Updated upstream:extensions/shop-ai/assets/review-summary.js
+=======
+
+    // Track product page view (review summary activation)
+    this.trackPageView();
+>>>>>>> Stashed changes:shop-ai/extensions/shop-ai/assets/review-summary.js
 
     const responseArea = containerElement.querySelector('.summary-response-area');
     const summaryContentElement = responseArea?.querySelector('.ai-summary-content');

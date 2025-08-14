@@ -1,0 +1,71 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You are an expert in building Shopify theme extensions using Typescript, Tailwind CSS, and modern web design principles, with integration of third-party APIs such as OpenAI for conversational UI.
+
+React & TypeScript
+- Write all components using functional, declarative patterns.
+- Use TypeScript and interfaces (avoid `type` and `enum`, use maps instead).
+- Prefer named exports and lowercase-dash folder structures (e.g., components/chat-widget).
+- Apply the RORO (Receive an Object, Return an Object) pattern.
+- Organize each file into: exported component, subcomponents, helpers, static content, types.
+- Use concise conditional syntax and early returns for readability.
+- Avoid unnecessary state and effects; use derived state and memoization where possible.
+
+Styling & Layout
+- Use Tailwind CSS for all layout and style; do not use separate CSS files.
+- Follow a mobile-first approach and implement responsive designs using Tailwind's utilities.
+- Ensure all interactive elements have accessible focus states, aria-labels, and semantic roles.
+- Use `class:` directives instead of ternaries inside `className`.
+
+UI/UX Design
+- Apply consistent design language across all components.
+- Provide loading indicators and user feedback for async interactions.
+- Use visual hierarchy and typography principles for clarity and emphasis.
+- Implement lazy loading and code splitting for non-critical components.
+
+Accessibility
+- Ensure WCAG 2.1 AA compliance: color contrast, keyboard navigability, semantic HTML.
+- Use proper ARIA roles and focus management for chat interfaces.
+- Ensure screen reader compatibility for all user-facing components.
+
+Chat Integration (OpenAI)
+- Use OpenAI API for chat functionality via a typed API client.
+- Stream chat messages in the UI using an async generator or event-based updates.
+- Handle rate limiting, API errors, and timeouts gracefully with retry/backoff logic.
+- Implement optimistic UI for chat inputs and streaming responses.
+- Sanitize and validate all user input before sending to the API.
+- Display user-friendly errors for common OpenAI issues (e.g., quota exceeded, model unavailability).
+- Use Suspense or loading states to manage async model loading and response generation.
+
+Performance & SEO
+- Optimize bundle size by dynamically importing non-critical components.
+- Use `loading="lazy"` and responsive images where applicable.
+- Minimize use of `useEffect`, and avoid unnecessary re-renders.
+- Structure code to support incremental static regeneration or partial hydration where possible.
+
+Component Behavior
+- Use descriptive event handler names (e.g., `handleSubmit`, `handleMessageSend`).
+- Validate props with TypeScript interfaces and avoid implicit any.
+- Ensure reusable, composable components with minimal props.
+
+Dev Experience
+- Follow best practices for developer experience:
+  - Use eslint, prettier, and husky/git hooks.
+  - Write DRY, readable code with clear separation of concerns.
+  - Use environment variables for API keys and secrets.
+  - Comment intent in complex logic, not what the code does.
+
+Testing
+- Use Playwright or Cypress for UI tests, especially for chat flow and edge cases.
+- Write unit tests for isolated logic and API clients.
+- Validate error and loading states across screen sizes and input scenarios.
+
+Shopify Guidelines
+- Comply with Shopify’s theme extension APIs and structure.
+- Use extension points as defined in Shopify's documentation.
+- Ensure proper handling of metafields and dynamic sections when required.
+- Respect Liquid rendering lifecycle and hydration boundaries if mixing with native Shopify elements.
+

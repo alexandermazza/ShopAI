@@ -1,0 +1,70 @@
+# Dependencies
+.cache
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database files
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-journal
+database_backup.sql
+
+# Development files
+.env.local
+.env.development
+.env.test
+*.log
+
+# Build artifacts
+build/
+dist/
+.next/
+.nuxt/
+.output/
+
+# Version control
+.git
+.gitignore
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# HTTP artifacts (seen in your git status)
+Accept:
+Content-Length:
+Content-Type:
+Host:
+POST
+User-Agent:
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Documentation
+README.md
+CHANGELOG.md
+*.md
+docs/

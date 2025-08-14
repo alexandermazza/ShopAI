@@ -34,9 +34,8 @@ import {
   EmptyState,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-// @ts-ignore - db.server.js is JavaScript
-import prisma from "../db.server.js";
-import { authenticate } from "../shopify.server.js";
+import { prisma } from "~/db.server";
+import { authenticate } from "~/shopify.server";
 
 // Register chart components
 ChartJS.register(LineElement, BarElement, CategoryScale, LinearScale, PointElement, Filler, Tooltip, Legend);
