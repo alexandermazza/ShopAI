@@ -9,15 +9,11 @@ import {
   Text,
   BlockStack,
 } from "@shopify/polaris";
-import { authenticate } from "../shopify.server.js";
-// @ts-ignore
-import db from "../db.server.js";
+import { authenticate } from "../shopify.server";
+import { prisma } from "../db.server";
 import OpenAI from "openai";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// OpenAI client will be initialized inside the action function
 
 interface LoaderData {
   shop: string;
@@ -30,7 +26,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { shop } = session;
 
   // Fetch store information from the database
-  const storeInfo = await db.storeInformation.findUnique({
+  const storeInfo = await prisma.storeInformation.findUnique({
     where: { shop },
   });
 
@@ -50,7 +46,7 @@ export async function action({ request }: ActionFunctionArgs) {
     console.log("Action: Setting up a new assistant...");
 
     // 1. Check if an assistant already exists for this store to avoid duplicates
-    const existingStoreInfo = await db.storeInformation.findUnique({
+    const existingStoreInfo = await prisma.storeInformation.findUnique({
       where: { shop },
     });
 
@@ -60,6 +56,15 @@ export async function action({ request }: ActionFunctionArgs) {
         success: false,
         error: "An assistant already exists for this store.",
       });
+    }
+
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY environment variable is not set");
     }
 
     // 2. Create a new Vector Store for the assistant's knowledge base
@@ -186,7 +191,7 @@ export async function action({ request }: ActionFunctionArgs) {
         When asked about a specific product, use the File Search tool to find relevant product details, descriptions, and analyze images if necessary.
         Be concise, helpful, and encourage the user to make a purchase if it feels natural.
         Do not make up information. If you cannot find the answer in the provided files, say "I'm sorry, I don't have that information, but I can ask our human team to help."`,
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       tools: [{ type: "file_search" }],
       tool_resources: {
         file_search: {
@@ -198,7 +203,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // 4. Save the new IDs to the database
     console.log("Saving IDs to the database...");
-    await db.storeInformation.upsert({
+    await prisma.storeInformation.upsert({
       where: { shop },
       update: {
         assistantId: assistant.id,

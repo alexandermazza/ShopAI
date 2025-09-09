@@ -18,7 +18,7 @@ import {
   Divider,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../shopify.server.js";
 import { updateStoreReferralCode } from "../utils/plan-management.server.js";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {

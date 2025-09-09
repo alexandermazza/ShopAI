@@ -5,7 +5,7 @@ import {
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import { restResources } from "@shopify/shopify-api/rest/admin/2024-04"; // Ensure this API version is appropriate for your app
-import prisma from "./db.server"; // Make sure this path is correct and prisma is exported
+import { prisma } from "./db.server"; // Make sure this path is correct and prisma is exported
 import crypto from "crypto";
 
 const shopify = shopifyApp({

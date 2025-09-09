@@ -9,7 +9,7 @@ import {
   Text,
   BlockStack,
 } from "@shopify/polaris";
-import { authenticate } from "../shopify.server.js";
+import { authenticate } from "../shopify.server";
 // @ts-ignore
 import db from "../db.server.js";
 import OpenAI from "openai";

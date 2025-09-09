@@ -2,3 +2,4 @@
 CREATE INDEX IF NOT EXISTS "ProductPageView_shop_viewedAt_idx" ON "public"."ProductPageView"("shop", "viewedAt");
 
 
+

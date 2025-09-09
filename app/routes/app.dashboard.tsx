@@ -34,20 +34,34 @@ import {
   EmptyState,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { prisma } from "~/db.server";
-import { authenticate } from "~/shopify.server";
+import { prisma } from "../db.server";
+import { authenticate } from "../shopify.server";
 
 // Register chart components
 ChartJS.register(LineElement, BarElement, CategoryScale, LinearScale, PointElement, Filler, Tooltip, Legend);
 
-interface CustomerQuestion {
+// Server-side interface (from Prisma)
+interface CustomerQuestionFromDB {
   id: string;
   question: string;
   times: number;
   askedAt: Date;
 }
 
+// Client-side interface (after JSON serialization)
+interface CustomerQuestion {
+  id: string;
+  question: string;
+  times: number;
+  askedAt: string; // Serialized as string when sent from loader
+}
+
 interface UsageData {
+  day: string;
+  count: number;
+}
+
+interface PageViewData {
   day: string;
   count: number;
 }
@@ -56,6 +70,8 @@ interface Metrics {
   totalQuestions: number;
   uniqueQuestions: number;
   avgQuestionsPerDay: number;
+  totalPageViews: number;
+  avgPageViewsPerDay: number;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -68,8 +84,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const endDate = endParam ? new Date(endParam) : new Date();
   const startDate = startParam ? new Date(startParam) : new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000); // default 30 days
 
-  // Fetch all questions for this shop and date range
-  const questions = await prisma.customerQuestion.findMany({
+  // Fetch question events for this shop and date range
+  // @ts-ignore - Prisma client will include this model after running migrations
+  const questionEvents = await prisma.customerQuestionEvent.findMany({
     where: {
       shop: session.shop,
       askedAt: {
@@ -82,18 +99,50 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  // Aggregate counts per day
+  // Fetch all page views for this shop and date range
+  const pageViews = await prisma.productPageView.findMany({
+    where: {
+      shop: session.shop,
+      viewedAt: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+    orderBy: {
+      viewedAt: "asc",
+    },
+  });
+
+  // Helper: local day key (avoid UTC off-by-one)
+  const toLocalDayKey = (d: Date) => {
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().split("T")[0];
+  };
+
+  // Aggregate counts per day from events
   const dailyMap = new Map<string, number>();
-  questions.forEach((q: CustomerQuestion) => {
-    const key = q.askedAt.toISOString().split("T")[0]; // YYYY-MM-DD
+  questionEvents.forEach((e: any) => {
+    const key = toLocalDayKey(new Date(e.askedAt));
     dailyMap.set(key, (dailyMap.get(key) || 0) + 1);
   });
 
   const usageData: UsageData[] = Array.from(dailyMap.entries()).map(([day, count]) => ({ day, count }));
 
-  const totalQuestions = questions.length;
-  const uniqueQuestions = new Set(questions.map((q: CustomerQuestion) => q.question)).size;
+  // Aggregate page view counts per day using local day key
+  const pageViewDailyMap = new Map<string, number>();
+  pageViews.forEach((pv: any) => {
+    const key = toLocalDayKey(new Date(pv.viewedAt));
+    pageViewDailyMap.set(key, (pageViewDailyMap.get(key) || 0) + 1);
+  });
+
+  const pageViewData: PageViewData[] = Array.from(pageViewDailyMap.entries()).map(([day, count]) => ({ day, count }));
+
+  const totalQuestions = questionEvents.length;
+  const uniqueQuestions = new Set(questionEvents.map((e: any) => e.questionNormalized)).size;
   const avgQuestionsPerDay = usageData.length ? totalQuestions / usageData.length : 0;
+  
+  const totalPageViews = pageViews.length;
+  const avgPageViewsPerDay = pageViewData.length ? totalPageViews / pageViewData.length : 0;
 
   // Top questions within range
   const topQuestions = await prisma.customerQuestion.findMany({
@@ -109,11 +158,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  const metrics: Metrics = { totalQuestions, uniqueQuestions, avgQuestionsPerDay };
+  const metrics: Metrics = { 
+    totalQuestions, 
+    uniqueQuestions, 
+    avgQuestionsPerDay,
+    totalPageViews,
+    avgPageViewsPerDay 
+  };
+
+  // Build recent questions list (last 100 events)
+  const recentQuestions = questionEvents
+    .slice(-100)
+    .reverse()
+    .map((e: any) => ({ question: e.questionRaw, askedAt: e.askedAt }));
 
   return json({ 
     usageData, 
+    pageViewData,
     topQuestions, 
+    recentQuestions,
     start: startDate.toISOString().split("T")[0], 
     end: endDate.toISOString().split("T")[0],
     metrics
@@ -121,13 +184,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function Dashboard() {
-  const { usageData, topQuestions, start, end, metrics } = useLoaderData<typeof loader>();
+  const { usageData, pageViewData, topQuestions, recentQuestions, start, end, metrics } = useLoaderData<typeof loader>();
   const [chartType, setChartType] = useState<"area" | "bar">("area");
   const [startDate, setStartDate] = useState(start);
   const [endDate, setEndDate] = useState(end);
   const navigate = useNavigate();
   
-  const labels = usageData.map((d: UsageData) => d.day);
+  // Format labels for display as locale short date
+  const formatDate = (day: string) => new Date(day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const labels = usageData.map((d: UsageData) => formatDate(d.day));
   const counts = usageData.map((d: UsageData) => d.count);
 
   const data = {
@@ -247,6 +312,18 @@ export default function Dashboard() {
                 </Text>
               </BlockStack>
             </Card>
+            
+            <Card>
+              <BlockStack gap="200">
+                <Text as="h3" variant="headingMd">👀 Product Page Views</Text>
+                <Text as="p" variant="heading2xl" tone="base">
+                  {metrics.totalPageViews.toLocaleString()}
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Review summary activations
+                </Text>
+              </BlockStack>
+            </Card>
           </InlineStack>
         </Layout.Section>
 
@@ -329,6 +406,101 @@ export default function Dashboard() {
           </Card>
         </Layout.Section>
 
+        {/* Product Page Views Chart */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingLg">👀 Product Page Views</Text>
+              
+              {/* Chart */}
+              <Box minHeight="400px" background="bg-surface-secondary" padding="400" borderRadius="200">
+                {pageViewData.length > 0 ? (
+                  <div style={{ height: '350px' }}>
+                    {chartType === "area" ? 
+                      <Line 
+                        data={{
+                          labels: pageViewData.map((d: PageViewData) => formatDate(d.day)),
+                          datasets: [
+                            {
+                              label: "Page Views",
+                              data: pageViewData.map((d: PageViewData) => d.count),
+                              fill: true,
+                              backgroundColor: "rgba(16, 185, 129, 0.1)",
+                              borderColor: "#10b981",
+                              borderWidth: 2,
+                              tension: 0.4,
+                              pointBackgroundColor: "#10b981",
+                              pointBorderColor: "#ffffff",
+                              pointBorderWidth: 2,
+                              pointRadius: 4,
+                              pointHoverRadius: 6,
+                            },
+                          ],
+                        }}
+                        options={{
+                          ...options,
+                          plugins: {
+                            ...options.plugins,
+                            tooltip: {
+                              ...options.plugins.tooltip,
+                              callbacks: {
+                                title: function(context: any[]) {
+                                  return context[0].label;
+                                },
+                                label: function(context: any) {
+                                  return `Page Views: ${context.parsed.y}`;
+                                }
+                              }
+                            }
+                          }
+                        } as const}
+                      /> : 
+                      <Bar 
+                        data={{
+                          labels: pageViewData.map((d: PageViewData) => formatDate(d.day)),
+                          datasets: [
+                            {
+                              label: "Page Views",
+                              data: pageViewData.map((d: PageViewData) => d.count),
+                              backgroundColor: "#10b981",
+                              borderColor: "#10b981",
+                              borderWidth: 2,
+                            },
+                          ],
+                        }}
+                        options={{
+                          ...options,
+                          plugins: {
+                            ...options.plugins,
+                            tooltip: {
+                              ...options.plugins.tooltip,
+                              callbacks: {
+                                title: function(context: any[]) {
+                                  return context[0].label;
+                                },
+                                label: function(context: any) {
+                                  return `Page Views: ${context.parsed.y}`;
+                                }
+                              }
+                            }
+                          }
+                        } as const}
+                      />
+                    }
+                  </div>
+                ) : (
+                  <EmptyState
+                    heading="No page view data available"
+                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                  >
+                    <p>No product page views tracked for the selected date range.</p>
+                  </EmptyState>
+                )}
+              </Box>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
         {/* Questions Table */}
         <Layout.Section>
           <Card>
@@ -354,6 +526,38 @@ export default function Dashboard() {
                   image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                 >
                   <p>When customers start asking questions, they'll appear here.</p>
+                </EmptyState>
+              )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Recent Questions */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Box>
+                <Text as="h2" variant="headingLg">🕒 Recent Questions</Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Last 100 questions in the selected range
+                </Text>
+              </Box>
+              {recentQuestions && recentQuestions.length > 0 ? (
+                <DataTable
+                  columnContentTypes={['text', 'text']}
+                  headings={['Question', 'Asked At']}
+                  rows={recentQuestions.map((rq: any, idx: number) => [
+                    rq.question,
+                    new Date(rq.askedAt).toLocaleString()
+                  ])}
+                  increasedTableDensity
+                />
+              ) : (
+                <EmptyState
+                  heading="No recent questions"
+                  image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                >
+                  <p>No questions recorded for the selected date range.</p>
                 </EmptyState>
               )}
             </BlockStack>

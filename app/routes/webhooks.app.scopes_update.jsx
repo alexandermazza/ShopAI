@@ -1,5 +1,5 @@
 import { authenticate, verifyShopifyHmac } from "../shopify.server";
-import db from "../db.server";
+import { prisma } from "../db.server";
 
 export const action = async ({ request }) => {
   const secret = process.env.SHOPIFY_API_SECRET || "";
@@ -15,7 +15,7 @@ export const action = async ({ request }) => {
   const current = payload.current;
 
   if (session) {
-    await db.session.update({
+    await prisma.session.update({
       where: {
         id: session.id,
       },

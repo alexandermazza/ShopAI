@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import OpenAI from "openai";
-import { authenticate } from "../shopify.server.js";
+import { authenticate } from "../../../app/shopify.server";
 // @ts-ignore - db.server.js is a JavaScript file
 import prisma from "../db.server.js";
 
@@ -163,21 +163,22 @@ export async function action({ request }: ActionFunctionArgs) {
         `\n\nIMPORTANT: I have also provided ${validImageUrls.length} product image(s) for analysis. Please examine these images for details like nutritional information, specifications, ingredients, care instructions, or other details that might not be mentioned in the text description. Include questions about information visible in the images.` : '';
       
       const prompt = `
-        Generate exactly 3 distinct, concise questions that customers might ask about this product and store. Make the questions short, clickable, and relevant.
+        Generate 3 short, casual questions customers would naturally ask about this product. Keep them simple and conversational.
 
         IMPORTANT: Look at both the Product Information AND Store Information sections. Include questions about:
         - Product features, specifications, or details
         - Store policies (shipping, returns, warranties) if available
-        - Services or support if mentioned${imageAnalysisNote}
 
-        Format: One question per line, no numbering, no quotes, no prefixes.
+        Product info: ${productContext}${storeContext}
 
-        Product Information:
-        ---
-        ${productContext}
-        ---${storeContext}
+        Format: Just the questions, one per line. NO numbers, NO quotes, NO prefixes.
 
-        Generate 3 relevant questions:
+        Examples:
+        How does this fit?
+        What's the return policy?
+        Is this waterproof?
+
+        3 simple questions:
       `;
       console.log("📤 Sending prompt to OpenAI for suggested questions with", prompt.length, "characters");
       console.log("📸 Using vision for suggestions:", useVisionForSuggestions, "| Including", useVisionForSuggestions ? validImageUrls.length : 0, "images");
@@ -188,7 +189,7 @@ export async function action({ request }: ActionFunctionArgs) {
         model: "gpt-5-mini-2025-08-07", // GPT-5 Mini handles both text and vision efficiently
         messages: messages,
         // temperature: 1, // GPT-5 Nano only supports default temperature of 1
-        max_completion_tokens: 400, // Reduced from 800 for cost optimization
+        max_completion_tokens: 100, // Keep questions short and punchy
         n: 1,
       });
       const content = extractAssistantTextFromCompletion(completion);
@@ -198,7 +199,7 @@ export async function action({ request }: ActionFunctionArgs) {
       }
       const suggestedQuestions = content.split('\n').map(q => q.trim()).filter(q => q.length > 0).slice(0, 3);
       
-      return json({ suggestedQuestions });
+      return json({ suggestions: { questions: suggestedQuestions } });
 
     } catch (error: unknown) {
       console.error("OpenAI API Call Error (Suggested Questions):", error);

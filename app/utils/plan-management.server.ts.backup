@@ -1,0 +1,31 @@
+import { prisma } from "../db.server";
+
+const PLAN_LIMITS: Record<string, number> = {
+  free: 50,
+  basic: 500,
+  premium: 5000,
+  enterprise: Infinity,
+};
+
+export async function incrementQuestionCount(shop: string) {
+  const storeInfo = await prisma.storeInformation.findUnique({
+    where: { shop },
+    select: { pricingPlan: true, monthlyQuestions: true },
+  });
+
+  const plan = storeInfo?.pricingPlan || "free";
+  const limit = PLAN_LIMITS[plan] || 50;
+  const currentUsage = storeInfo?.monthlyQuestions || 0;
+
+  if (currentUsage >= limit) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  await prisma.storeInformation.update({
+    where: { shop },
+    data: { monthlyQuestions: { increment: 1 } },
+  });
+
+  return { allowed: true, remaining: limit - (currentUsage + 1) };
+}
+

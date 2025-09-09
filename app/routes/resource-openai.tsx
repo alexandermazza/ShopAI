@@ -2,12 +2,9 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import OpenAI from "openai";
-import { prisma } from "~/db.server";
+import { prisma } from "../db.server";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
-});
+// OpenAI client will be initialized inside the action function
 
 // Helper function to get store information
 async function getStoreInformation(shop: string) {
@@ -172,21 +169,18 @@ export async function action({ request }: ActionFunctionArgs) {
         `\n\nIMPORTANT: I have also provided ${validImageUrls.length} product image(s) for analysis. Please examine these images for details like nutritional information, specifications, ingredients, care instructions, or other details that might not be mentioned in the text description. Include questions about information visible in the images.` : '';
       
       const prompt = `
-        Generate exactly 3 distinct, concise questions that customers might ask about this product and store. Make the questions short, clickable, and relevant.
+        Generate 3 short, casual questions customers would naturally ask about this product. Keep them simple and conversational.
 
-        IMPORTANT: Look at both the Product Information AND Store Information sections. Include questions about:
-        - Product features, specifications, or details
-        - Store policies (shipping, returns, warranties) if available
-        - Services or support if mentioned${imageAnalysisNote}
+        Product info: ${productContext}${storeContext}
 
-        Format: One question per line, no numbering, no quotes, no prefixes.
+        Format: Just the questions, one per line. NO numbers, NO quotes, NO prefixes.
 
-        Product Information:
-        ---
-        ${productContext}
-        ---${storeContext}
+        Examples:
+        How does this fit?
+        What's the return policy?
+        Is this waterproof?
 
-        Generate 3 relevant questions:
+        3 simple questions:
       `;
       
       console.log("📤 Sending prompt to OpenAI for suggested questions with", prompt.length, "characters");
@@ -194,11 +188,22 @@ export async function action({ request }: ActionFunctionArgs) {
       
               const messages = buildMessagesWithImages(prompt, useVisionForSuggestions ? validImageUrls : []);
       
+      // Initialize OpenAI client
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error("OPENAI_API_KEY environment variable is not set");
+      }
+
       const completion = await openai.chat.completions.create({
-        model: useVisionForSuggestions ? "gpt-4o" : "gpt-4.1-nano-2025-04-14", // GPT-4o for vision, GPT-4.1 nano for text
+        model: useVisionForSuggestions ? "gpt-4o" : "gpt-4o-mini", // Use real OpenAI models
         messages: messages,
-        temperature: 0.7,
-        max_tokens: 400, // Reduced from 600 for cost optimization
+        max_completion_tokens: 100, // Keep questions short and punchy
+      }, {
+        // GPT-5 specific: Add timeout for better error handling
+        timeout: 15000, // 15 second timeout for faster response
       });
 
       console.log("📥 Received response from OpenAI for suggested questions:", completion.choices[0]?.message?.content);
@@ -258,6 +263,16 @@ export async function action({ request }: ActionFunctionArgs) {
                 shop: shopDomain, 
                 question: normalizedQuestion 
               },
+            });
+            // Also insert immutable event for this ask
+            // @ts-ignore - Prisma client will include this model after running migrations
+            await prisma.customerQuestionEvent.create({
+              data: {
+                shop: shopDomain,
+                questionRaw: question,
+                questionNormalized: normalizedQuestion,
+                askedAt: new Date(),
+              }
             });
             console.log("💾 ✅ Question stored successfully for shop:", shopDomain);
           } else {
@@ -323,17 +338,28 @@ export async function action({ request }: ActionFunctionArgs) {
       console.log("📤 Sending prompt to OpenAI for answer with", prompt.length, "characters");
       console.log("🧠 Vision needed:", needsVision, "| Has images:", hasImages, "| Using vision:", useVision);
       console.log("📝 Question for vision analysis:", question);
-      console.log("🤖 Selected model:", useVision ? "gpt-4o" : "gpt-4.1-nano-2025-04-14");
+      console.log("🤖 Selected model:", useVision ? "gpt-4o" : "gpt-4o-mini");
       
       // Always use high detail for consistent quality when using vision
 
       const messages = buildMessagesWithImages(prompt, useVision ? validImageUrls : []);
 
+      // Initialize OpenAI client
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error("OPENAI_API_KEY environment variable is not set");
+      }
+
       const completion = await openai.chat.completions.create({
-        model: useVision ? "gpt-4o" : "gpt-4.1-nano-2025-04-14", // GPT-4o for vision, GPT-4.1 nano for text
+        model: useVision ? "gpt-4o" : "gpt-4o-mini", // Use real OpenAI models
         messages: messages,
-        temperature: 0.3, // Reduced for more consistent responses
-        max_tokens: 600, // Reduced from 900 for cost optimization
+        max_completion_tokens: 500, // Optimized for speed
+      }, {
+        // GPT-5 specific: Add timeout for better error handling
+        timeout: 15000, // 15 second timeout for faster response
       });
 
       console.log("📥 Received response from OpenAI for answer:", completion.choices[0]?.message?.content);

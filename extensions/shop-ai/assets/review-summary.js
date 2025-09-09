@@ -155,8 +155,6 @@ const ReviewSummary = {
     return null;
   },
 
-<<<<<<< Updated upstream:extensions/shop-ai/assets/review-summary.js
-=======
   // Track product page view when review summary is activated
   async trackPageView() {
     try {
@@ -182,8 +180,22 @@ const ReviewSummary = {
         return;
       }
 
-      // Send tracking data to API
-      const response = await fetch('/apps/proxy/api/page-view-tracking', {
+      // Build URL with shop in query for proxy resolution
+      const trackUrl = `/apps/proxy/api/page-view-tracking?shop=${encodeURIComponent(shop)}`;
+      // Simple dedupe: avoid double tracking within same tab session for the same product in last 2 minutes
+      try {
+        const dedupeKey = `shopai_pv_${shop}_${productId || 'x'}`;
+        const lastTs = sessionStorage.getItem(dedupeKey);
+        const now = Date.now();
+        if (lastTs && now - parseInt(lastTs, 10) < 120000) {
+          console.log('ReviewSummary: Skipping duplicate page view within 2 minutes');
+          return;
+        }
+        sessionStorage.setItem(dedupeKey, String(now));
+      } catch {}
+
+      // Send tracking data to API with retry logic for timing issues
+      const response = await fetch(trackUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -200,11 +212,25 @@ const ReviewSummary = {
         console.warn('ReviewSummary: Failed to track page view:', response.status);
       }
     } catch (error) {
-      console.warn('ReviewSummary: Error tracking page view:', error);
+      console.warn('ReviewSummary: Page view tracking failed, will retry:', error);
+      
+      // Retry once after a short delay for timing issues  
+      setTimeout(async () => {
+        try {
+          const retryResponse = await fetch(trackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shop: shop, productId: productId }),
+          });
+          if (retryResponse.ok) {
+            console.log('ReviewSummary: Page view tracked on retry');
+          }
+        } catch (retryError) {
+          // Silently fail on retry - page view tracking is not critical
+        }
+      }, 2000);
     }
   },
-
->>>>>>> Stashed changes:shop-ai/extensions/shop-ai/assets/review-summary.js
   async onMount(containerElement = document) {
     console.log('ReviewSummary: onMount called for container:', containerElement);
     if (!containerElement || containerElement.id !== 'review-summary-block') {
@@ -212,12 +238,9 @@ const ReviewSummary = {
         return;
     }
     console.log('ReviewSummary: Container validated, proceeding with initialization');
-<<<<<<< Updated upstream:extensions/shop-ai/assets/review-summary.js
-=======
 
     // Track product page view (review summary activation)
     this.trackPageView();
->>>>>>> Stashed changes:shop-ai/extensions/shop-ai/assets/review-summary.js
 
     const responseArea = containerElement.querySelector('.summary-response-area');
     const summaryContentElement = responseArea?.querySelector('.ai-summary-content');

@@ -1,10 +1,9 @@
 // shop-ai/app/routes/api.resource-openai.tsx - Pure resource route file
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
-import { prisma } from "~/db.server";
-import { incrementQuestionCount } from "~/utils/plan-management.server";
+import OpenAI from 'openai';
+import { prisma } from "../db.server";
+import { incrementQuestionCount } from "../utils/plan-management.server";
 
 // No default export - this makes it a resource route!
 
@@ -103,15 +102,16 @@ export async function action({ request }: ActionFunctionArgs) {
       // Continue with request if usage check fails to avoid blocking users
     }
 
-    const prompt = `You are a product specialist for an online store. Your job is to answer customer questions with clarity, confidence, and a touch of marketing flair.
-    You may make reasonable inferences based on the product details provided. Use context clues, related attributes, and common product knowledge to fill in gaps if necessary.
+    const prompt = `You are a product specialist for an online store. Analyze thoroughly and provide detailed reasoning for customer questions with clarity, confidence, and a touch of marketing flair.
+
+    Think step-by-step and use your full analytical capabilities. You may make reasonable inferences based on the product details provided. Use context clues, related attributes, and common product knowledge to fill in gaps if necessary.
     When the user refers to "this" or "it" etc, assume they are referring to the product in the product context.
     If you're truly unsure, say: "I'm not certain based on the current product details."
     Be helpful, and friendly.
 
     When answering questions about reviews:
     *   DO NOT list individual reviews verbatim.
-    *   Instead, SUMMARIZE the overall sentiment.
+    *   Instead, SUMMARIZE the overall sentiment with detailed analysis.
     *   Identify recurring themes, both positive (highlights) and negative (major criticisms).
     *   Mention the general consensus or any significant disagreements among reviewers.
 
@@ -122,14 +122,37 @@ export async function action({ request }: ActionFunctionArgs) {
 
     User Question: ${question}
 
-    Answer:`;
+    Provide a comprehensive, well-reasoned answer:`;
 
-    const result = await streamText({
-      model: openai('gpt-5-mini-2025-08-07'),
-      prompt: prompt,
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
     });
 
-    return new Response(result.textStream);
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY environment variable is not set");
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      max_completion_tokens: 600,
+    }, {
+      // GPT-5 specific: Add timeout for better error handling
+      timeout: 30000, // 30 second timeout
+    });
+
+    const answer = completion.choices[0]?.message?.content?.trim() ?? 
+      "Sorry, I couldn't generate an answer.";
+
+    return new Response(JSON.stringify({ answer }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
     console.error("Error in resource-openai route:", error);

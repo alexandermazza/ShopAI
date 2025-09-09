@@ -65,6 +65,18 @@ model CustomerQuestion {
   @@index([shop, askedAt])
 }
 
+/// Immutable event log for every question asked
+model CustomerQuestionEvent {
+  id                 String   @id @default(cuid())
+  shop               String
+  questionRaw        String
+  questionNormalized String
+  askedAt            DateTime @default(now())
+
+  @@index([shop, askedAt])
+  @@index([shop, questionNormalized])
+}
+
 model ProductPageView {
   id       String   @id @default(cuid())
   shop     String

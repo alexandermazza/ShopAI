@@ -1,13 +1,10 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import OpenAI from "openai";
-import { authenticate } from "~/shopify.server";
-import { prisma } from "~/db.server";
+import { authenticate } from "../shopify.server";
+import { prisma } from "../db.server";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// OpenAI client will be initialized inside the action function
 
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -226,21 +223,18 @@ export async function action({ request }: ActionFunctionArgs) {
         `\n\nIMPORTANT: I have also provided ${selectedImagesForSuggestions.length} product image(s) for analysis. Please examine these images for details like nutritional information, specifications, ingredients, care instructions, or other details that might not be mentioned in the text description. Include questions about information visible in the images.` : '';
       
       const prompt = `
-        Generate exactly 3 distinct, concise questions that customers might ask about this product and store. Make the questions short, clickable, and relevant.
+        Generate 3 short, casual questions customers would naturally ask about this product. Keep them simple and conversational.
 
-        IMPORTANT: Look at both the Product Information AND Store Information sections. Include questions about:
-        - Product features, specifications, or details
-        - Store policies (shipping, returns, warranties) if available
-        - Services or support if mentioned${imageAnalysisNote}
+        Product info: ${compressedContextForSuggestions}${storeContext}
 
-        Format: One question per line, no numbering, no quotes, no prefixes.
+        Format: Just the questions, one per line. NO numbers, NO quotes, NO prefixes.
 
-        Product Information:
-        ---
-        ${compressedContextForSuggestions}
-        ---${storeContext}
+        Examples:
+        How does this fit?
+        What's the return policy?
+        Is this waterproof?
 
-        Generate 3 relevant questions:
+        3 simple questions:
       `;
       console.log("📤 Sending prompt to OpenAI for suggested questions with", prompt.length, "characters");
       console.log("📸 Using vision for suggestions:", useVisionForSuggestions, "| Including", useVisionForSuggestions ? selectedImagesForSuggestions.length : 0, "images");
@@ -248,12 +242,23 @@ export async function action({ request }: ActionFunctionArgs) {
       
       const messages = buildMessagesWithImages(prompt, useVisionForSuggestions ? selectedImagesForSuggestions : []);
       
+      // Initialize OpenAI client
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error("OPENAI_API_KEY environment variable is not set");
+      }
+
       const completion = await openai.chat.completions.create({
-        model: useVisionForSuggestions ? "gpt-5-mini-2025-08-07" : "gpt-5-mini-2025-08-07", // GPT-5 mini for all
+        model: useVisionForSuggestions ? "gpt-4o" : "gpt-4o-mini", // Use real OpenAI models
         messages: messages,
-        temperature: 0.7,
-        max_tokens: 400, // Reduced from 800 for cost optimization
+        max_completion_tokens: 100, // Keep questions short and punchy
         n: 1,
+      }, {
+        // GPT-5 specific: Add timeout for better error handling
+        timeout: 15000, // 15 second timeout for faster response
       });
       console.log("📥 Received response from OpenAI for suggested questions:", completion.choices[0]?.message?.content);
       const content = completion.choices[0]?.message?.content?.trim();
@@ -262,7 +267,7 @@ export async function action({ request }: ActionFunctionArgs) {
       }
       const suggestedQuestions = content.split('\n').map(q => q.trim()).filter(q => q.length > 0).slice(0, 3);
       
-      return json({ suggestedQuestions });
+      return json({ suggestions: { questions: suggestedQuestions } });
 
     } catch (error: unknown) {
       console.error("OpenAI API Call Error (Suggested Questions):", error);
@@ -342,7 +347,7 @@ export async function action({ request }: ActionFunctionArgs) {
       console.log("🔍 Question asked:", question);
       console.log("🧠 Vision needed:", needsVision, "| Has images:", hasImages, "| Using vision:", useVision);
       console.log("📝 Question for vision analysis:", question);
-      console.log("🤖 Selected model:", useVision ? "gpt-5-mini-2025-08-07" : "gpt-5-mini-2025-08-07");
+      console.log("🤖 Selected model:", useVision ? "gpt-4o" : "gpt-4o-mini");
       console.log("📋 Product context length:", productContext?.length || 0);
       console.log("🏪 Store context length:", storeContext?.length || 0);
       console.log("📸 Including", useVision ? selectedImages.length : 0, "images for analysis");
@@ -351,17 +356,28 @@ export async function action({ request }: ActionFunctionArgs) {
       
       const messages = buildMessagesWithImages(prompt, useVision ? selectedImages : []);
       
-      const selectedModel = useVision ? "gpt-5-mini-2025-08-07" : "gpt-5-mini-2025-08-07"; // Use GPT-5 mini for all
+      const selectedModel = useVision ? "gpt-4o" : "gpt-4o-mini"; // Use real OpenAI models
       console.log("🤖 SELECTED MODEL:", selectedModel);
       console.log("📸 IMAGE COUNT:", useVision ? selectedImages.length : 0);
       console.log("🔍 ALWAYS USING HIGH DETAIL FOR CONSISTENT QUALITY");
       console.log("💰 COST SAVINGS: Reduced from", validImageUrls.length, "to", selectedImages.length, "images (", Math.round((1 - selectedImages.length / validImageUrls.length) * 100), "% reduction)");
       
+      // Initialize OpenAI client
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error("OPENAI_API_KEY environment variable is not set");
+      }
+
       const completion = await openai.chat.completions.create({
         model: selectedModel,
         messages: messages,
-        temperature: 0.3, // Reduced for more consistent responses
-        max_tokens: 800, // Reduced from 1200 for cost optimization
+        max_completion_tokens: 800, // Reduced from 1200 for cost optimization
+      }, {
+        // GPT-5 specific: Add timeout for better error handling
+        timeout: 15000, // 15 second timeout for faster response
       });
       console.log("📥 Received response from OpenAI for answer:", completion.choices[0]?.message?.content);
       const answer = completion.choices[0]?.message?.content?.trim() ?? "Sorry, I couldn\'t generate an answer.";

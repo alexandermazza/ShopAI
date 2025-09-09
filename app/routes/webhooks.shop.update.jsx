@@ -15,7 +15,7 @@ export const action = async ({ request }) => {
     const payload = await request.json();
     console.log("Received SHOP_UPDATE webhook:", payload);
     // TODO: Handle the shop update logic (e.g., update shop information in your database)
-    // Example: await db.shop.update({ where: { shopifyId: payload.id }, data: { ... } });
+    // Example: await prisma.shop.update({ where: { shopifyId: payload.id }, data: { ... } });
   } catch (error) {
     console.error("Error processing SHOP_UPDATE webhook:", error);
     // Still return 200 to Shopify if HMAC was valid but processing failed,

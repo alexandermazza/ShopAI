@@ -96,8 +96,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   });
 
-  // Fetch all questions for this shop and date range
-  const questions = await prisma.customerQuestion.findMany({
+  // Fetch question events for this shop and date range (immutable log)
+  const questionEvents = await prisma.customerQuestionEvent.findMany({
     where: {
       shop: session.shop,
       askedAt: {
@@ -124,32 +124,38 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  // Aggregate question counts per day
+  // Helper to bucket date by local shop day (fallback to server local)
+  const toLocalDayKey = (d: Date) => {
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().split("T")[0];
+  };
+
+  // Aggregate question counts per day (use events)
   const dailyMap = new Map<string, number>();
-  questions.forEach((q: CustomerQuestion) => {
-    const key = q.askedAt.toISOString().split("T")[0]; // YYYY-MM-DD
+  questionEvents.forEach((e: any) => {
+    const key = toLocalDayKey(new Date(e.askedAt));
     dailyMap.set(key, (dailyMap.get(key) || 0) + 1);
   });
 
   const usageData: UsageData[] = Array.from(dailyMap.entries()).map(([day, count]) => ({ day, count }));
 
-  // Aggregate page view counts per day
+  // Aggregate page view counts per day using local day key
   const pageViewDailyMap = new Map<string, number>();
   pageViews.forEach((pv: any) => {
-    const key = pv.viewedAt.toISOString().split("T")[0]; // YYYY-MM-DD
+    const key = toLocalDayKey(new Date(pv.viewedAt));
     pageViewDailyMap.set(key, (pageViewDailyMap.get(key) || 0) + 1);
   });
 
   const pageViewData: PageViewData[] = Array.from(pageViewDailyMap.entries()).map(([day, count]) => ({ day, count }));
 
-  const totalQuestions = questions.length;
-  const uniqueQuestions = new Set(questions.map((q: CustomerQuestion) => q.question)).size;
+  const totalQuestions = questionEvents.length;
+  const uniqueQuestions = new Set(questionEvents.map((e: any) => e.questionNormalized)).size;
   const avgQuestionsPerDay = usageData.length ? totalQuestions / usageData.length : 0;
   
   const totalPageViews = pageViews.length;
   const avgPageViewsPerDay = pageViewData.length ? totalPageViews / pageViewData.length : 0;
 
-  // Top questions within range
+  // Top questions within range (frequency table)
   const topQuestions = await prisma.customerQuestion.findMany({
     where: {
       shop: session.shop,
@@ -180,10 +186,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     planLimits: null
   };
 
+  // Fetch recent questions list (events) limited for UI
+  const recentQuestions = questionEvents
+    .slice(-100)
+    .reverse()
+    .map((e: any) => ({ question: e.questionRaw, askedAt: e.askedAt }));
+
   return json({ 
     usageData, 
     pageViewData,
     topQuestions, 
+    recentQuestions,
     start: startDate.toISOString().split("T")[0], 
     end: endDate.toISOString().split("T")[0],
     metrics,
@@ -192,7 +205,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function Dashboard() {
-  const { usageData, pageViewData, topQuestions, start, end, metrics, storeInfo } = useLoaderData<typeof loader>();
+  const { usageData, pageViewData, topQuestions, recentQuestions, start, end, metrics, storeInfo } = useLoaderData<typeof loader>();
   const [chartType, setChartType] = useState<"area" | "bar">("area");
   const [startDate, setStartDate] = useState(start);
   const [endDate, setEndDate] = useState(end);
@@ -497,7 +510,7 @@ export default function Dashboard() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingLg">👀 Product Page Views</Text>
+              <Text as="h2" variant="headingLg">Product Page Views</Text>
               
               {/* Chart */}
               <Box minHeight="400px" background="bg-surface" padding="400" borderRadius="200">
@@ -581,6 +594,38 @@ export default function Dashboard() {
                   image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                 >
                   <p>When customers start asking questions, they'll appear here.</p>
+                </EmptyState>
+              )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Recent Questions */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Box>
+                <Text as="h2" variant="headingLg">🕒 Recent Questions</Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Last 100 questions in the selected range
+                </Text>
+              </Box>
+              {recentQuestions && recentQuestions.length > 0 ? (
+                <DataTable
+                  columnContentTypes={['text', 'text']}
+                  headings={['Question', 'Asked At']}
+                  rows={recentQuestions.map((rq: any, idx: number) => [
+                    rq.question,
+                    new Date(rq.askedAt).toLocaleString()
+                  ])}
+                  increasedTableDensity
+                />
+              ) : (
+                <EmptyState
+                  heading="No recent questions"
+                  image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                >
+                  <p>No questions recorded for the selected date range.</p>
                 </EmptyState>
               )}
             </BlockStack>

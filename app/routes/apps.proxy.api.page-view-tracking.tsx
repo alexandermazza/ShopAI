@@ -22,13 +22,14 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
+    // Resolve shop from multiple sources for robustness
     if (!shop) {
       // Prefer headers set by Shopify App Proxy
       shop = request.headers.get("X-Shopify-Shop-Domain") ||
              request.headers.get("x-shopify-shop-domain") || undefined;
     }
     if (!shop) {
-      // Fallback to query param
+      // Fallback to query param from proxy URL
       const url = new URL(request.url);
       shop = url.searchParams.get("shop") || undefined;
     }

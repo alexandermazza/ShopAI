@@ -4,10 +4,7 @@ import { json } from "@remix-run/node";
 // Use the standard OpenAI client directly for testing
 import OpenAI from "openai";
 
-// Initialize OpenAI client (same as resource-openai.tsx)
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
-});
+// OpenAI client will be initialized inside the action function
 
 // No default export - this makes it a resource route!
 
@@ -58,9 +55,8 @@ export async function action({ request }: ActionFunctionArgs) {
     };
     const toneInstruction = toneOfVoice && toneOfVoice !== 'default' ? (toneInstructions[toneOfVoice] || '') : '';
 
-    const prompt = `${toneInstruction ? toneInstruction + "\n" : ""}You are an AI assistant specializing in analyzing customer feedback for an e-commerce product.
-Your task is to summarize the provided customer review snippets concisely and objectively. Aim for a summary of 2-3 sentences maximum.
-Focus on extracting the core sentiment and recurring themes (both positive and negative).
+    const prompt = `${toneInstruction ? toneInstruction + "\n" : ""}You are an AI assistant specializing in analyzing customer feedback for an e-commerce product. Analyze thoroughly and think step-by-step.
+Your task is to provide a comprehensive, well-reasoned summary of the provided customer review snippets. Use your full analytical capabilities to extract the core sentiment and recurring themes (both positive and negative).
 DO NOT list individual reviews or quote directly unless illustrating a very specific, common point briefly.
 Keep the summary brief and easy to read, suitable for display on a product page. Keep the summary concise and in simple language.
 Start the summary directly, without introductory phrases like "Here is a summary...".
@@ -74,21 +70,26 @@ Very Concise Summary (2-3 sentences):`;
 
     console.log("Calling OpenAI (NON-STREAMING TEST) with prompt:", prompt);
 
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY environment variable is not set");
+    }
+
     // --- Use NON-STREAMING method like in resource-openai.tsx ---
     const completion = await openai.chat.completions.create({
-<<<<<<< Updated upstream:app/routes/resource-review-summary.tsx
-      model: "gpt-4.1-nano-2025-04-14", // Use GPT-4.1 nano for review summaries (text-only, cheaper)
+      model: "gpt-4o-mini", // Use real OpenAI model for review summaries (text-only, cost-effective)
       messages: [{
         role: "user",
         content: prompt
       }],
-      temperature: 0.7,
-      max_tokens: 400, // Increased for more comprehensive review summaries
-=======
-      model: "gpt-4.1-nano-2025-04-14",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 220,
->>>>>>> Stashed changes:shop-ai/app/routes/resource-review-summary.tsx
+      max_completion_tokens: 300, // Optimized for speed
+    }, {
+      // GPT-5 specific: Add timeout for better error handling
+      timeout: 15000, // 15 second timeout for faster response
     });
     // --- END NON-STREAMING TEST ---
 

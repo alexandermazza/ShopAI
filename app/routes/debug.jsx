@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import prisma from "../db.server";
+import { prisma } from "../db.server";
 
 export const loader = async ({ request }) => {
   // Security check - only allow in non-production or with debug key

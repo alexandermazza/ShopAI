@@ -212,21 +212,18 @@ export async function action({ request }: ActionFunctionArgs) {
         `\n\nIMPORTANT: I have also provided ${validImageUrls.length} product image(s) for analysis. Please examine these images for details like nutritional information, specifications, ingredients, care instructions, or other details that might not be mentioned in the text description. Include questions about information visible in the images.` : '';
       
       const prompt = `
-        Generate exactly 3 distinct, concise questions that customers might ask about this product and store. Make the questions short, clickable, and relevant.
+        Generate 3 short, casual questions customers would naturally ask about this product. Keep them simple and conversational.
 
-        IMPORTANT: Look at both the Product Information AND Store Information sections. Include questions about:
-        - Product features, specifications, or details
-        - Store policies (shipping, returns, warranties) if available
-        - Services or support if mentioned${imageAnalysisNote}
+        Product info: ${productContext}${storeContext}
 
-        Format: One question per line, no numbering, no quotes, no prefixes.
+        Format: Just the questions, one per line. NO numbers, NO quotes, NO prefixes.
 
-        Product Information:
-        ---
-        ${productContext}
-        ---${storeContext}
+        Examples:
+        How does this fit?
+        What's the return policy?
+        Is this waterproof?
 
-        Generate 3 relevant questions:
+        3 simple questions:
       `;
       
       console.log("📤 Sending prompt to OpenAI for suggested questions with", prompt.length, "characters");
@@ -236,9 +233,12 @@ export async function action({ request }: ActionFunctionArgs) {
       const messagesForSuggestions = buildMessagesWithImages(prompt, useVisionForSuggestions ? validImageUrls : []);
       
       const completion = await openai.chat.completions.create({
-        model: useVisionForSuggestions ? "gpt-4o" : "gpt-4.1-nano-2025-04-14",
+        model: "gpt-5-mini-2025-08-07", // GPT-5 mini for all - supports vision and text
         messages: messagesForSuggestions,
-        max_tokens: 200,
+        max_completion_tokens: 100, // Keep questions short and punchy
+      }, {
+        // GPT-5 specific: Add timeout for better error handling
+        timeout: 30000, // 30 second timeout
       });
 
       const finalContent = completion.choices[0]?.message?.content?.trim() ?? "";
@@ -296,6 +296,16 @@ export async function action({ request }: ActionFunctionArgs) {
                 shop: shopDomain, 
                 question: normalizedQuestion 
               },
+            });
+            // Also insert immutable event for each ask
+            // @ts-ignore - Prisma client will include this model after running migrations
+            await prisma.customerQuestionEvent.create({
+              data: {
+                shop: shopDomain,
+                questionRaw: question,
+                questionNormalized: normalizedQuestion,
+                askedAt: new Date(),
+              }
             });
             console.log("💾 ✅ Question stored successfully for shop:", shopDomain);
           } else {
@@ -364,11 +374,14 @@ export async function action({ request }: ActionFunctionArgs) {
   
       const gptPayload: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
         messages: buildMessagesWithImages(prompt, validImageUrls),
-        model: useVision ? "gpt-4o" : "gpt-4.1-nano-2025-04-14",
-        max_tokens: 220,
+        model: "gpt-5-mini-2025-08-07", // GPT-5 mini for all - supports vision and text
+        max_completion_tokens: 600,
       };
   
-      const completion = await openai.chat.completions.create(gptPayload);
+      const completion = await openai.chat.completions.create(gptPayload, {
+        // GPT-5 specific: Add timeout for better error handling
+        timeout: 30000, // 30 second timeout
+      });
 
       let answer = completion.choices[0]?.message?.content?.trim() || "Sorry, I couldn't generate an answer.";
       

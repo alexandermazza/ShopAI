@@ -24,6 +24,7 @@ dist/
 .next/
 .nuxt/
 .output/
+shop-ai/
 
 # Version control
 .git
