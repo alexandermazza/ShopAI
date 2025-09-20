@@ -2,38 +2,35 @@
 
 client_id = "2a2ba6e7ada972054aa4e30f4d530a0d"
 name = "ShopAI"
-handle = "shopai-25"
-application_url = "https://shop-ai.fly.dev"
+application_url = "https://shop-ai.fly.dev/"
 embedded = true
+handle = "shopai-25"
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
 
 [webhooks]
 api_version = "2025-01"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
+  uri = "/webhooks/customers/data_request"
+  compliance_topics = [ "customers/data_request" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/redact"
+  compliance_topics = [ "customers/redact" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/shop/redact"
+  compliance_topics = [ "shop/redact" ]
 
   [[webhooks.subscriptions]]
   topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
 
   [[webhooks.subscriptions]]
-  topics = [ "shop/redact" ]
-  uri = "/webhooks/shop/redact"
-
-  [[webhooks.subscriptions]]
-  topics = [ "customers/data_request" ]
-  uri = "/webhooks/customers/data_request"
-
-  [[webhooks.subscriptions]]
-  topics = [ "customers/redact" ]
-  uri = "/webhooks/customers/redact"
-
-
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
@@ -46,15 +43,14 @@ redirect_urls = [
   "https://shop-ai.fly.dev/install"
 ]
 
-[pos]
-embedded = false
-
 [app_proxy]
 url = "https://shop-ai.fly.dev"
 subpath = "proxy"
 prefix = "apps"
 
-# Theme App Extension Configuration
+[pos]
+embedded = false
+
 [extensions.theme]
 type = "theme"
 name = "ShopAI Theme Extension"

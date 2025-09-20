@@ -32,9 +32,11 @@ export const loader = async ({ request }) => {
     return json({ success: true, shop: result?.session?.shop });
   } catch (error) {
     console.error("❌ Auth route: Authentication error", { 
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
+      message: error?.message || 'No error message',
+      name: error?.name || 'No error name',
+      stack: error?.stack || 'No stack trace',
+      errorString: String(error),
+      errorType: typeof error,
       url: request.url,
       shop,
       userAgent: request.headers.get('user-agent'),

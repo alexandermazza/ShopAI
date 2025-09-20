@@ -16,16 +16,17 @@ const shopify = shopifyApp({
   apiVersion: LATEST_API_VERSION,
   restResources,
   sessionStorage: new PrismaSessionStorage(prisma),
-  isEmbeddedApp: true, // Default to true for most Shopify apps
+  isEmbeddedApp: true,
   // Example of more detailed logging, uncomment if needed:
   // logger: {
   //   level: LogSeverity.Debug,
   //   timestamps: true,
   // },
-  // future: { 
-  //   // future flags can be set here
-  //   // v3_webhookAdminContext: true, // Example future flag
-  // }, 
+  future: { 
+    // Enable new embedded authentication strategy (fixes cookie issues)
+    unstable_newEmbeddedAuthStrategy: true,
+    v3_webhookAdminContext: true,
+  }, 
 });
 
 export default shopify;
