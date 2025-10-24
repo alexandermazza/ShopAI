@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run minify:*)",
+      "WebFetch(domain:shopify.dev)",
+      "WebSearch",
+      "Bash(npm run minify:review-summary:*)",
+      "Bash(flyctl logs:*)",
+      "Bash(timeout 10 flyctl logs -a shop-ai -n 50)",
+      "Bash(flyctl status:*)",
+      "Bash(psql:*)",
+      "Bash(flyctl postgres connect:*)",
+      "Bash(flyctl apps list:*)",
+      "Bash(flyctl ssh console:*)",
+      "Bash(npx tsx:*)",
+      "Bash(PGPASSWORD=nafhE57XilGW5LM psql:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,8 +1,126 @@
+# 2.0.3 (Latest)
+
+## CRITICAL FIX: App Credits & Custom Pricing Support - October 2025
+- **🎁 APP CREDITS SUPPORT**: Billing checks now properly recognize Shopify app credits and trial credits
+- **💰 CUSTOM PRICING SUPPORT**: Accepts ANY active subscription, not just "Pro Plan" name (supports custom discounted plans)
+- **🔧 SHOPIFY API INTEGRATION**: Enhanced billing validation to query Shopify's API directly for subscription status
+- **✅ SOURCE OF TRUTH**: Always checks Shopify's billing API first, falls back to database if unavailable
+- **💳 CREDITS HANDLING**: Stores with app credits/trial credits/custom pricing will now have full access to theme extensions
+- **🛡️ ROBUST FALLBACK**: Multi-tier validation system ensures reliability even if API is temporarily unavailable
+- **📊 TECHNICAL IMPLEMENTATION**:
+  - Created `hasActiveSubscriptionViaAPI()` in `billing-check.server.ts`
+  - Uses offline session from database to authenticate GraphQL queries
+  - Queries `currentAppInstallation.activeSubscriptions` to get real-time billing status
+  - Checks for `ACTIVE` subscription status (includes stores with app credits!)
+  - Falls back to database check (`StoreInformation` table) if API unavailable or session expired
+  - Dev/test stores continue to bypass subscription checks for development workflow
+- **🎯 VALIDATION FLOW**:
+  1. Check if dev/test store → Allow access
+  2. Query Shopify GraphQL API for active subscriptions → If found, allow access
+  3. Fallback to database `StoreInformation` check → If Pro Plan active, allow access
+  4. Otherwise → Return 402 Payment Required error
+- **AFFECTED FILES**:
+  - `app/utils/billing-check.server.ts` - New `hasActiveSubscriptionViaAPI()` function (lines 122-226)
+  - `app/routes/resource-openai.tsx` - Updated to use API-based billing check (line 96)
+  - `app/routes/resource-review-summary.tsx` - Updated to use API-based billing check (line 22)
+- **SEVERITY**: High - Fixes blocked access for stores with legitimate app credits/trial credits
+- **DEPLOYMENT**: Safe to deploy immediately - only improves existing billing validation
+
+# 2.0.2
+
+## BILLING ENFORCEMENT: Theme Extension Access Control - October 2025
+- **🔒 SUBSCRIPTION ENFORCEMENT**: All theme extension features now require active Pro Plan subscription
+- **🚫 NO FREE TRIAL**: Pro Plan ($15/month) has no free trial - immediate payment required
+- **✅ PROTECTED ENDPOINTS**: Both Q&A and Review Summary features check subscription status before processing
+- **💳 PAYMENT REQUIRED RESPONSES**: Returns 402 status code with clear subscription message when not subscribed
+- **📊 BILLING CHECK**: Validates both `pricingPlan` and `subscriptionStatus` in StoreInformation model
+- **🛡️ MERCHANT PROTECTION**: Ensures merchants subscribe before installing components on product pages
+- **🎯 USER EXPERIENCE**: Clear error messaging directing users to subscribe in Shopify admin
+- **🔧 TECHNICAL IMPLEMENTATION**:
+  - Added `hasActiveSubscription()` helper to both OpenAI and Review Summary routes
+  - Checks for Pro Plan AND active subscription status before allowing API access
+  - Shop domain extracted from App Proxy URL query parameters
+  - Consistent billing enforcement across all theme extension endpoints
+- **AFFECTED FILES**:
+  - `app/routes/resource-openai.tsx` - Q&A endpoint with billing check (lines 118-125)
+  - `app/routes/resource-review-summary.tsx` - Review Summary endpoint with billing check (lines 45-52)
+  - `app/utils/billing.server.ts` - Confirmed `trialDays: 0` (no free trial)
+- **SEVERITY**: High - prevents unpaid usage of theme extension features
+
+# 2.0.1
+
+## CRITICAL SECURITY FIX: Store Context Data Isolation - October 2025
+- **🚨 CRITICAL SECURITY FIX**: Fixed data leak in Store Context page where all shops shared the same context
+- **🔒 ISSUE**: Store context was stored in an in-memory variable shared across ALL shops
+- **💥 IMPACT**: Shop A's context could be viewed/edited by Shop B (severe privacy violation)
+- **✅ FIX**: Replaced in-memory storage with proper database isolation using `session.shop`
+- **🛡️ SECURITY**: Each shop's context is now properly isolated in the database
+- **📊 DATABASE**: Uses `StoreInformation.additionalInfo` field with proper `where: { shop }` filtering
+- **🎯 VERIFICATION**: Added shop name display in UI to verify correct store context
+- **⚠️ RECOMMENDATION**: All existing users should clear and re-enter their store context
+- **AFFECTED FILE**: `app/routes/app.store-context.tsx`
+- **SEVERITY**: Critical - immediate deployment recommended
+
+# 2.0.0
+
+## MAJOR UPDATE: Shopify Billing Integration - October 2025
+- **🚀 SHOPIFY BILLING API INTEGRATION**: Fully integrated Shopify's official billing API for monetization
+- **💰 PRO PLAN SUBSCRIPTION**: Single $15/month Pro Plan with no free trial (immediate payment required)
+- **✅ SUBSCRIPTION REQUIRED**: Users must subscribe to use the app (enforced through billing middleware)
+- **📊 USAGE LIMITS**: Pro Plan offers unlimited questions and full feature access
+- **💳 SEAMLESS PAYMENTS**: Charges processed through Shopify's native billing system
+- **🔧 TECHNICAL IMPLEMENTATION**:
+  - Created `billing.server.ts` with plan configuration and Shopify billing config
+  - Added `billing-check.server.ts` with middleware for subscription validation
+  - Implemented `/app/pricing` route with beautiful Polaris-based subscription UI
+  - Added billing callback handler at `/app/billing/callback` for post-approval redirects
+  - Created webhook handler at `/webhooks/subscriptions/update` for subscription lifecycle events
+  - Updated `shopify.server.ts` to include billing configuration in shopifyApp()
+  - Added subscription status banners to admin dashboard
+- **📈 DATABASE ENHANCEMENTS**:
+  - Added `subscriptionId`, `subscriptionStatus`, and `trialEndsAt` fields to StoreInformation model
+  - Updated plan management logic to sync with Shopify billing API
+  - Question count tracking with limit enforcement for free tier
+- **🎯 USER EXPERIENCE**:
+  - Clear subscription requirement messaging on first login
+  - Beautiful pricing page with feature breakdown
+  - Success notifications after subscription approval
+  - Warning banners for users without active subscriptions
+- **⚙️ DEVELOPMENT MODE**: Billing set to test mode in development (no actual charges)
+- **🔒 PRODUCTION READY**: Proper webhook handling for subscription updates, cancellations, and expirations
+- **📱 SHOPIFY INTEGRATION**: Subscriptions managed through Shopify Partners dashboard
+- **AFFECTED FILES**:
+  - `app/utils/billing.server.ts` - Billing configuration
+  - `app/utils/billing-check.server.ts` - Subscription middleware
+  - `app/utils/plan-management.server.ts` - Updated for billing sync
+  - `app/routes/app.pricing.tsx` - Subscription UI
+  - `app/routes/app.billing.callback.tsx` - Post-approval handler
+  - `app/routes/webhooks.subscriptions.update.tsx` - Webhook handler
+  - `app/routes/app._index.jsx` - Dashboard with subscription status
+  - `app/shopify.server.ts` - Billing configuration
+  - `shopify.app.toml` - Added subscription webhook
+  - `prisma/schema.prisma` - Added billing fields
+- **BUSINESS IMPACT**: App can now monetize properly with automated subscription management
+
+# 1.8.1
+
+## Critical Performance Fix - January 2025
+- **🚀 MAJOR PERFORMANCE IMPROVEMENT**: Fixed 10-20 second delay before "Ask Me Anything" became interactive
+- **ROOT CAUSE**: JavaScript was waiting up to 20 seconds for Judge.me reviews to load before initializing
+- **FIX**: Reduced review wait timeout from 20s to 2s (90% faster initialization)
+- **FIX**: Reduced context wait timeout from 5s to 1s with faster polling (100ms vs 250ms)
+- **IMPACT**: Widget now responds immediately to user input after page load
+- **AFFECTED FILES**:
+  - `ask-me-anything.js` - Main Q&A widget
+  - `suggested-questions.js` - Suggested questions feature
+- **USER EXPERIENCE**: Eliminated frustrating delay where users would press Enter and wait 10+ seconds to see "Thinking..." state
+- **TECHNICAL**: Optimized MutationObserver wait times and polling intervals for DOM elements
+
 ### 2.1.0 - 2025-08-07
 - Feature: Integrated `gpt-5-mini-2025-08-07` across the application for enhanced AI capabilities, replacing older models.
 - Chore: Refactored OpenAI API calls to standardize on the new `gpt-5-mini-2025-08-07` model.
 
-# 1.8.0 (Latest)
+# 1.8.0
 
 ## Major Cost Optimization: GPT-5 Nano Upgrade - January 2025
 - **🚀 MASSIVE COST SAVINGS**: Upgraded all AI models to GPT-5 Nano ($0.05 input, $0.40 output per million tokens)

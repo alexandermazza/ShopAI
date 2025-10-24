@@ -1,7 +1,7 @@
 console.log('suggested-questions.js loaded');
 
 const SuggestedQuestions = {
-  async waitForJudgeMeReviews(maxWaitMs = 20000) {
+  async waitForJudgeMeReviews(maxWaitMs = 2000) {
     let reviews = document.querySelectorAll('.jdgm-rev');
     if (reviews.length > 0) return reviews;
     return new Promise(resolve => {
@@ -65,20 +65,20 @@ const SuggestedQuestions = {
     });
     return reviewText;
   },
-  async waitForContextAndReviews(container, timeout = 5000) {
+  async waitForContextAndReviews(container, timeout = 1000) {
     const start = Date.now();
     return new Promise((resolve, reject) => {
       function check() {
         const ctx = container.dataset.productContext;
         const reviews = document.querySelectorAll('.jdgm-rev, .spr-review, .shopify-product-reviews .review');
-        
+
         // Only require context, reviews are optional
         if (ctx && ctx.trim().length > 0) {
           resolve({ ctx, reviews });
         } else if (Date.now() - start > timeout) {
           reject(new Error('Timed out waiting for productContext'));
         } else {
-          setTimeout(check, 250);
+          setTimeout(check, 100);
         }
       }
       check();

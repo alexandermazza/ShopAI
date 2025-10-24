@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useFetcher, useLoaderData } from "@remix-run/react";
+import { useFetcher, useLoaderData, useSearchParams } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -20,10 +20,14 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 // @ts-ignore - db.server.js is a JavaScript file
 import { prisma } from "../db.server";
+import { getBillingStatus } from "../utils/billing-check.server";
 
 export const loader = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
-  
+  const { admin, session } = await authenticate.admin(request);
+
+  // Check billing status
+  const billingStatus = await getBillingStatus(admin);
+
   // Load store information directly from database
   let storeInfo = null;
   try {
@@ -34,15 +38,19 @@ export const loader = async ({ request }) => {
   } catch (error) {
     console.error("Error loading store information:", error);
   }
-  
-  return { storeInfo };
+
+  return {
+    storeInfo,
+    hasActivePayment: billingStatus.hasActivePayment,
+  };
 };
 
 export default function Index() {
   const app = useAppBridge();
-  const { storeInfo } = useLoaderData();
+  const { storeInfo, hasActivePayment } = useLoaderData();
   const fetcher = useFetcher();
-  
+  const [searchParams] = useSearchParams();
+
   const [selectedTab, setSelectedTab] = useState(0);
   const [formData, setFormData] = useState({
     storeName: storeInfo?.storeName || "",
@@ -135,12 +143,43 @@ export default function Index() {
       id: 'store-info',
       content: 'Store Information',
     },
+    {
+      id: 'dashboard',
+      content: 'Dashboard',
+      url: '/app/dashboard',
+    },
+    {
+      id: 'store-context',
+      content: 'Store Context',
+      url: '/app/store-context',
+    },
   ];
+
+  const billingSuccess = searchParams.get("billing") === "success";
 
   return (
     <Page>
       <TitleBar title="ShopAI" />
       <BlockStack gap="500">
+        {billingSuccess && (
+          <Banner title="Welcome to ShopAI Pro!" tone="success" onDismiss={() => {}}>
+            <p>Your subscription is now active. Enjoy unlimited AI-powered customer questions!</p>
+          </Banner>
+        )}
+        {!hasActivePayment && (
+          <Banner
+            title="Subscription Required"
+            tone="warning"
+            action={{
+              content: "Subscribe Now",
+              url: "/app/pricing",
+            }}
+          >
+            <p>
+              You need an active ShopAI Pro subscription to use AI features on your product pages.
+            </p>
+          </Banner>
+        )}
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (
             <Layout>
@@ -151,7 +190,7 @@ export default function Index() {
                       <Box paddingBlockEnd="200">
                         <InlineStack gap="200" align="start">
                           <Text as="h1" variant="headingLg">
-                            Welcome to ShopAI 🤖
+                            Welcome to ShopAI
                           </Text>
                           <Badge tone="success">v1.6.0</Badge>
                         </InlineStack>
@@ -182,8 +221,8 @@ export default function Index() {
                     </BlockStack>
 
                     <Banner
-                      title="💡 Enhance AI Responses"
-                      status="info"
+                      title="Enhance AI Responses"
+                      tone="info"
                     >
                       <Text variant="bodyMd">
                         Add your store information in the "Store Information" tab to help the AI provide more accurate answers about shipping, returns, store policies, and more!
@@ -192,59 +231,125 @@ export default function Index() {
 
                     <BlockStack gap="300">
                       <Text as="h2" variant="headingMd">
-                        How to Use ShopAI
+                        Implementation Guide
                       </Text>
-                      <Text variant="bodyMd" as="p">
-                        ShopAI adds two powerful blocks to your theme editor:
+                      <Text variant="bodyMd" as="p" fontWeight="semibold">
+                        Follow these steps to add AI-powered features to your product pages:
                       </Text>
-                      <Box padding="300" background="bg-surface-secondary" borderRadius="200">
-                        <BlockStack gap="200">
-                          <InlineStack gap="200">
-                            <Badge>Block</Badge>
-                            <Text variant="bodyMd" fontWeight="semibold">Ask Me Anything</Text>
-                          </InlineStack>
-                          <Text variant="bodyMd">
-                            Add this block to product pages so customers can ask questions and get AI-powered answers about your products and store.
-                          </Text>
-                        </BlockStack>
-                      </Box>
-                      <Box padding="300" background="bg-surface-secondary" borderRadius="200">
-                        <BlockStack gap="200">
-                          <InlineStack gap="200">
-                            <Badge>Block</Badge>
-                            <Text variant="bodyMd" fontWeight="semibold">Review Summarizer</Text>
-                          </InlineStack>
-                          <Text variant="bodyMd">
-                            Automatically summarize product reviews to help customers quickly understand the key points.
-                          </Text>
-                        </BlockStack>
-                      </Box>
-                    </BlockStack>
 
-                    <BlockStack gap="300">
-                      <Text as="h2" variant="headingMd">
-                        Getting Started
-                      </Text>
-                      <List type="number">
-                        <List.Item>
-                          <strong>Add Store Information:</strong> Fill out the "Store Information" tab with your policies and details
-                        </List.Item>
-                        <List.Item>
-                          Go to your theme editor: <strong>Online Store → Themes → Customize</strong>
-                        </List.Item>
-                        <List.Item>
-                          Navigate to a product page template
-                        </List.Item>
-                        <List.Item>
-                          Click <strong>"Add block"</strong> and look for the ShopAI blocks
-                        </List.Item>
-                        <List.Item>
-                          Add either "Ask Me Anything" or "Review Summarizer" (or both!)
-                        </List.Item>
-                        <List.Item>
-                          Save your theme and test it on your live store
-                        </List.Item>
-                      </List>
+                      <BlockStack gap="400">
+                        <Box padding="400" background="bg-surface-secondary" borderRadius="200">
+                          <BlockStack gap="300">
+                            <Text variant="headingSm" as="h3">Step 1: Configure Store Information</Text>
+                            <List>
+                              <List.Item>
+                                Click the <strong>"Store Information"</strong> tab above
+                              </List.Item>
+                              <List.Item>
+                                Fill in your shipping policy, return policy, store hours, and contact information
+                              </List.Item>
+                              <List.Item>
+                                This helps the AI provide accurate answers about your store policies
+                              </List.Item>
+                              <List.Item>
+                                Click <strong>"Save Store Information"</strong> when complete
+                              </List.Item>
+                            </List>
+                          </BlockStack>
+                        </Box>
+
+                        <Box padding="400" background="bg-surface-secondary" borderRadius="200">
+                          <BlockStack gap="300">
+                            <Text variant="headingSm" as="h3">Step 2: Open Your Theme Editor</Text>
+                            <List>
+                              <List.Item>
+                                In your Shopify admin, go to <strong>Online Store → Themes</strong>
+                              </List.Item>
+                              <List.Item>
+                                On your active theme, click <strong>"Customize"</strong>
+                              </List.Item>
+                              <List.Item>
+                                In the theme editor, navigate to a <strong>Product page</strong> using the page selector at the top
+                              </List.Item>
+                            </List>
+                          </BlockStack>
+                        </Box>
+
+                        <Box padding="400" background="bg-surface-secondary" borderRadius="200">
+                          <BlockStack gap="300">
+                            <Text variant="headingSm" as="h3">Step 3: Add the "Ask Me Anything" Block</Text>
+                            <List>
+                              <List.Item>
+                                In the left sidebar, click <strong>"Add block"</strong> (or "Add section")
+                              </List.Item>
+                              <List.Item>
+                                Search for <strong>"Ask Me Anything"</strong> and select it
+                              </List.Item>
+                              <List.Item>
+                                Position the block where you want it on the product page (recommended: below product description)
+                              </List.Item>
+                              <List.Item>
+                                Customize the block settings:
+                                <List>
+                                  <List.Item><strong>Language:</strong> Set your store's language</List.Item>
+                                  <List.Item><strong>Placeholder text:</strong> Customize the input prompt</List.Item>
+                                  <List.Item><strong>Colors:</strong> Match your brand colors</List.Item>
+                                  <List.Item><strong>Logo:</strong> Upload your logo (optional)</List.Item>
+                                </List>
+                              </List.Item>
+                            </List>
+                          </BlockStack>
+                        </Box>
+
+                        <Box padding="400" background="bg-surface-secondary" borderRadius="200">
+                          <BlockStack gap="300">
+                            <Text variant="headingSm" as="h3">Step 4: Add the "Review Summarizer" Block (Optional)</Text>
+                            <List>
+                              <List.Item>
+                                Click <strong>"Add block"</strong> again
+                              </List.Item>
+                              <List.Item>
+                                Search for <strong>"Review Summarizer"</strong> and select it
+                              </List.Item>
+                              <List.Item>
+                                Position it near your reviews section (recommended: directly above reviews)
+                              </List.Item>
+                              <List.Item>
+                                Customize colors and styling to match your theme
+                              </List.Item>
+                              <List.Item>
+                                <strong>Note:</strong> This requires product reviews to be present (works with Judge.me and Shopify native reviews)
+                              </List.Item>
+                            </List>
+                          </BlockStack>
+                        </Box>
+
+                        <Box padding="400" background="bg-surface-secondary" borderRadius="200">
+                          <BlockStack gap="300">
+                            <Text variant="headingSm" as="h3">Step 5: Save and Test</Text>
+                            <List>
+                              <List.Item>
+                                Click <strong>"Save"</strong> in the top right corner of the theme editor
+                              </List.Item>
+                              <List.Item>
+                                Visit a product page on your live store
+                              </List.Item>
+                              <List.Item>
+                                Test the "Ask Me Anything" widget by asking a question about the product
+                              </List.Item>
+                              <List.Item>
+                                Check the <strong>"Dashboard"</strong> tab to view analytics and customer questions
+                              </List.Item>
+                            </List>
+                          </BlockStack>
+                        </Box>
+                      </BlockStack>
+
+                      <Banner tone="info">
+                        <Text variant="bodyMd">
+                          <strong>Pro Tip:</strong> The more detailed your store information, the better the AI responses will be. Update the Store Information tab regularly to keep answers current.
+                        </Text>
+                      </Banner>
                     </BlockStack>
                   </BlockStack>
                 </Card>
@@ -263,7 +368,7 @@ export default function Index() {
                             AI Model
                           </Text>
                           <Text as="span" variant="bodyMd" fontWeight="medium">
-                            GPT-4o Mini
+                            GPT-5 Nano
                           </Text>
                         </InlineStack>
                         <InlineStack align="space-between">

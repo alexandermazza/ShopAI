@@ -1,6 +1,10 @@
 const AskMeAnything = {
+  // --- Cache for preloaded reviews ---
+  cachedReviews: null,
+  reviewsPromise: null,
+
   // --- Helper to wait for Judge.me reviews to appear ---
-  async waitForJudgeMeReviews(maxWaitMs = 20000) {
+  async waitForJudgeMeReviews(maxWaitMs = 2000) {
     // Try immediately
     let reviews = document.querySelectorAll('.jdgm-rev');
     if (reviews.length > 0) {
@@ -30,6 +34,25 @@ const AskMeAnything = {
 
   // --- Helper Function to Scrape Reviews ---
   async scrapeReviewContent() {
+    // Return cached reviews if available
+    if (this.cachedReviews !== null) {
+      console.log('⚡ Using cached reviews (instant!)');
+      return this.cachedReviews;
+    }
+
+    // If reviews are being loaded, wait for that promise
+    if (this.reviewsPromise) {
+      console.log('⏳ Waiting for reviews promise to resolve...');
+      return await this.reviewsPromise;
+    }
+
+    // Otherwise, fetch reviews now
+    console.log('🔄 Fetching reviews on-demand...');
+    return await this._fetchReviews();
+  },
+
+  // --- Internal function to actually fetch reviews ---
+  async _fetchReviews() {
     let reviewText = '\nCustomer Reviews:\n';
     let reviews = [];
 
@@ -84,12 +107,29 @@ const AskMeAnything = {
       }
     }
     if (reviews.length === 0) {
-      return "\nCustomer Reviews: No reviews found on this page.\n";
+      reviewText = "\nCustomer Reviews: No reviews found on this page.\n";
+    } else {
+      reviews.forEach((r, i) => {
+        reviewText += `- Review ${i + 1}: Rating: ${r.rating}/5. ${r.author ? 'By: ' + r.author + '. ' : ''}Comment: \"${r.body}\"\n`;
+      });
     }
-    reviews.forEach((r, i) => {
-      reviewText += `- Review ${i + 1}: Rating: ${r.rating}/5. ${r.author ? 'By: ' + r.author + '. ' : ''}Comment: \"${r.body}\"\n`;
-    });
+
+    // Cache the result for future calls
+    this.cachedReviews = reviewText;
+    console.log('✅ Reviews cached for instant future access');
+
     return reviewText;
+  },
+
+  // --- Preload reviews in the background ---
+  preloadReviews() {
+    if (this.cachedReviews === null && this.reviewsPromise === null) {
+      console.log('🚀 Preloading reviews in background...');
+      this.reviewsPromise = this._fetchReviews().then(result => {
+        this.reviewsPromise = null; // Clear promise once resolved
+        return result;
+      });
+    }
   },
 
   // --- Helper to fetch reviews from Judge.me API ---
@@ -224,6 +264,9 @@ const AskMeAnything = {
       return;
     }
 
+    // Preload reviews in the background immediately on mount
+    this.preloadReviews();
+
     const form = containerElement.querySelector('form.ask-me-anything-form');
     // Remove keypress handler and use form submit instead
     form.addEventListener('submit', async (e) => {
@@ -245,8 +288,8 @@ const AskMeAnything = {
       attributionElement.classList.add('hidden');
       searchInput.disabled = true;
 
-      // Use the App Proxy path
-      const apiUrl = '/api/resource-openai';
+      // Use the App Proxy path (required for storefront requests)
+      const apiUrl = '/apps/proxy/resource-openai';
       const language = containerElement.getAttribute('data-language') || 'en';
 
       try {

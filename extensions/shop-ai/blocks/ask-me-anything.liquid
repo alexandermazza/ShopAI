@@ -217,7 +217,34 @@
 </script>
 
 <style>
-/* Define the gradient */
+/* ===== THEME ISOLATION - Prevent theme styles from affecting our widget ===== */
+/* Block theme animations on container and non-animated elements */
+#ask-me-anything,
+.ask-me-anything-container,
+.search-wrapper,
+.search-input,
+.search-icon,
+.clear-button,
+#suggested-questions-container,
+.suggested-question-button {
+  animation: none !important;
+  box-sizing: border-box;
+}
+
+/* Remove pseudo-elements that themes inject */
+#ask-me-anything::before,
+#ask-me-anything::after,
+.ask-me-anything-container::before,
+.ask-me-anything-container::after,
+.search-wrapper::before,
+.search-wrapper::after,
+.response-area::before,
+.response-area::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Define our own animations */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -232,6 +259,23 @@
     opacity: 1;
     transform: translate3d(0, 0, 0);
   }
+}
+
+/* Allow animations on response area and its children (they need it!) */
+.response-area,
+.response-area *,
+.response-area.visible,
+.response-area.loading .ai-answer-content {
+  animation: unset !important; /* Reset animation blocking */
+}
+
+/* Apply our own animations to response area */
+.response-area.visible {
+  animation: fadeInUp 0.5s ease forwards !important;
+}
+
+.response-area.loading .ai-answer-content {
+  animation: shimmer 1.5s linear infinite !important;
 }
 
 /* Text Generate Effect styles */

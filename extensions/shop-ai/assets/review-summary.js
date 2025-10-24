@@ -213,14 +213,31 @@ const ReviewSummary = {
       }
     } catch (error) {
       console.warn('ReviewSummary: Page view tracking failed, will retry:', error);
-      
-      // Retry once after a short delay for timing issues  
+
+      // Retry once after a short delay for timing issues
       setTimeout(async () => {
         try {
-          const retryResponse = await fetch(trackUrl, {
+          let retryShop = null;
+          if (window.Shopify && window.Shopify.shop) {
+            retryShop = window.Shopify.shop;
+          } else {
+            retryShop = window.location.hostname;
+          }
+
+          let retryProductId = null;
+          if (window.ShopifyAnalytics && window.ShopifyAnalytics.meta && window.ShopifyAnalytics.meta.product) {
+            retryProductId = window.ShopifyAnalytics.meta.product.id?.toString();
+          } else if (window.meta && window.meta.product) {
+            retryProductId = window.meta.product.id?.toString();
+          }
+
+          if (!retryShop) return;
+
+          const retryTrackUrl = `/apps/proxy/api/page-view-tracking?shop=${encodeURIComponent(retryShop)}`;
+          const retryResponse = await fetch(retryTrackUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ shop: shop, productId: productId }),
+            body: JSON.stringify({ shop: retryShop, productId: retryProductId }),
           });
           if (retryResponse.ok) {
             console.log('ReviewSummary: Page view tracked on retry');

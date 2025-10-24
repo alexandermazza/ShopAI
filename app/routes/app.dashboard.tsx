@@ -114,9 +114,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   // Helper: local day key (avoid UTC off-by-one)
-  const toLocalDayKey = (d: Date) => {
-    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-    return local.toISOString().split("T")[0];
+  // Converts UTC timestamp to local calendar day based on server timezone
+  // Note: This uses the SERVER's timezone, not the user's browser timezone
+  const toLocalDayKey = (d: Date | string) => {
+    const date = typeof d === 'string' ? new Date(d) : d;
+    // Use toLocaleDateString with 'en-CA' (Canada) locale for YYYY-MM-DD format
+    // This automatically handles the server's local timezone
+    return date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
   };
 
   // Aggregate counts per day from events
@@ -126,7 +130,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     dailyMap.set(key, (dailyMap.get(key) || 0) + 1);
   });
 
-  const usageData: UsageData[] = Array.from(dailyMap.entries()).map(([day, count]) => ({ day, count }));
+  let usageData: UsageData[] = Array.from(dailyMap.entries()).map(([day, count]) => ({ day, count }));
 
   // Aggregate page view counts per day using local day key
   const pageViewDailyMap = new Map<string, number>();
@@ -137,9 +141,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const pageViewData: PageViewData[] = Array.from(pageViewDailyMap.entries()).map(([day, count]) => ({ day, count }));
 
-  const totalQuestions = questionEvents.length;
-  const uniqueQuestions = new Set(questionEvents.map((e: any) => e.questionNormalized)).size;
-  const avgQuestionsPerDay = usageData.length ? totalQuestions / usageData.length : 0;
+  let totalQuestions = questionEvents.length;
+  let uniqueQuestions = new Set(questionEvents.map((e: any) => e.questionNormalized)).size;
+  let avgQuestionsPerDay = usageData.length ? totalQuestions / usageData.length : 0;
   
   const totalPageViews = pageViews.length;
   const avgPageViewsPerDay = pageViewData.length ? totalPageViews / pageViewData.length : 0;
@@ -158,6 +162,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
+  // Fallback: if no events yet, derive from CustomerQuestion summary so charts aren't empty
+  if (questionEvents.length === 0) {
+    const summaryQuestions = await prisma.customerQuestion.findMany({
+      where: {
+        shop: session.shop,
+        askedAt: { gte: startDate, lte: endDate },
+      },
+      orderBy: { askedAt: "asc" },
+    });
+
+    const fallbackMap = new Map<string, number>();
+    summaryQuestions.forEach((q: any) => {
+      const key = toLocalDayKey(new Date(q.askedAt));
+      const incrementBy = typeof q.times === 'number' ? q.times : 1;
+      fallbackMap.set(key, (fallbackMap.get(key) || 0) + incrementBy);
+    });
+    usageData = Array.from(fallbackMap.entries()).map(([day, count]) => ({ day, count }));
+    totalQuestions = summaryQuestions.reduce((acc: number, q: any) => acc + (q.times || 1), 0);
+    uniqueQuestions = summaryQuestions.length;
+    avgQuestionsPerDay = usageData.length ? totalQuestions / usageData.length : 0;
+  }
+
   const metrics: Metrics = { 
     totalQuestions, 
     uniqueQuestions, 
@@ -167,10 +193,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 
   // Build recent questions list (last 100 events)
-  const recentQuestions = questionEvents
+  let recentQuestions = questionEvents
     .slice(-100)
     .reverse()
     .map((e: any) => ({ question: e.questionRaw, askedAt: e.askedAt }));
+  if (recentQuestions.length === 0) {
+    const recentFromSummary = await prisma.customerQuestion.findMany({
+      where: { shop: session.shop },
+      orderBy: { askedAt: "desc" },
+      take: 100,
+    });
+    recentQuestions = recentFromSummary.map((q: any) => ({ question: q.question, askedAt: q.askedAt }));
+  }
 
   return json({ 
     usageData, 
@@ -270,28 +304,74 @@ export default function Dashboard() {
   ]);
 
   return (
-    <Page title="Customer Questions Dashboard">
+    <Page title="Analytics Dashboard">
       <TitleBar title="Dashboard" />
-      
+
       <Layout>
-        {/* Summary Cards */}
+        {/* Date Range Filter - Top of page */}
         <Layout.Section>
-          <InlineStack gap="400" wrap={false}>
+          <Card>
+            <InlineStack gap="400" align="space-between" wrap={false}>
+              <BlockStack gap="100">
+                <Text as="h2" variant="headingMd">Analytics Period</Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Filter data by date range
+                </Text>
+              </BlockStack>
+              <InlineStack gap="200" align="end">
+                <Box minWidth="140px">
+                  <TextField
+                    label="From"
+                    type="date"
+                    value={startDate}
+                    onChange={setStartDate}
+                    autoComplete="off"
+                  />
+                </Box>
+                <Box minWidth="140px">
+                  <TextField
+                    label="To"
+                    type="date"
+                    value={endDate}
+                    onChange={setEndDate}
+                    autoComplete="off"
+                  />
+                </Box>
+                <Button
+                  variant="primary"
+                  onClick={handleApplyFilters}
+                >
+                  Apply Filters
+                </Button>
+              </InlineStack>
+            </InlineStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Key Metrics - 2x2 Grid */}
+        <Layout.Section>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
             <Card>
-              <BlockStack gap="200">
-                <Text as="h3" variant="headingMd">💬 Total Questions</Text>
+              <BlockStack gap="300">
+                <InlineStack align="space-between">
+                  <Text as="h3" variant="headingMd" tone="subdued">Total Questions</Text>
+                  <div style={{ fontSize: '1.5rem' }}>💬</div>
+                </InlineStack>
                 <Text as="p" variant="heading2xl" tone="base">
                   {metrics.totalQuestions.toLocaleString()}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  Questions asked by customers
+                  Asked by customers in this period
                 </Text>
               </BlockStack>
             </Card>
-            
+
             <Card>
-              <BlockStack gap="200">
-                <Text as="h3" variant="headingMd">🔍 Unique Questions</Text>
+              <BlockStack gap="300">
+                <InlineStack align="space-between">
+                  <Text as="h3" variant="headingMd" tone="subdued">Unique Questions</Text>
+                  <div style={{ fontSize: '1.5rem' }}>🔍</div>
+                </InlineStack>
                 <Text as="p" variant="heading2xl" tone="base">
                   {metrics.uniqueQuestions.toLocaleString()}
                 </Text>
@@ -300,22 +380,28 @@ export default function Dashboard() {
                 </Text>
               </BlockStack>
             </Card>
-            
+
             <Card>
-              <BlockStack gap="200">
-                <Text as="h3" variant="headingMd">📊 Questions per Day</Text>
+              <BlockStack gap="300">
+                <InlineStack align="space-between">
+                  <Text as="h3" variant="headingMd" tone="subdued">Daily Average</Text>
+                  <div style={{ fontSize: '1.5rem' }}>📊</div>
+                </InlineStack>
                 <Text as="p" variant="heading2xl" tone="base">
                   {metrics.avgQuestionsPerDay.toFixed(1)}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  Average daily volume
+                  Questions per day
                 </Text>
               </BlockStack>
             </Card>
-            
+
             <Card>
-              <BlockStack gap="200">
-                <Text as="h3" variant="headingMd">👀 Product Page Views</Text>
+              <BlockStack gap="300">
+                <InlineStack align="space-between">
+                  <Text as="h3" variant="headingMd" tone="subdued">Page Views</Text>
+                  <div style={{ fontSize: '1.5rem' }}>👀</div>
+                </InlineStack>
                 <Text as="p" variant="heading2xl" tone="base">
                   {metrics.totalPageViews.toLocaleString()}
                 </Text>
@@ -324,244 +410,209 @@ export default function Dashboard() {
                 </Text>
               </BlockStack>
             </Card>
-          </InlineStack>
+          </div>
         </Layout.Section>
 
-        {/* Filters and Chart Type */}
+        {/* Combined Charts Section */}
         <Layout.Section>
           <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingLg">Analytics Overview</Text>
-              
-              <InlineStack gap="400" align="space-between" wrap={false}>
-                {/* Chart Type Toggle */}
-                <Box>
-                  <Text as="p" variant="bodyMd" tone="subdued">Chart Type</Text>
-                  <Box paddingBlockStart="200">
-                    <ButtonGroup>
-                      <Button 
-                        pressed={chartType === "area"}
-                        onClick={() => setChartType("area")}
-                      >
-                        📈 Area
-                      </Button>
-                      <Button 
-                        pressed={chartType === "bar"}
-                        onClick={() => setChartType("bar")}
-                      >
-                        📊 Bar
-                      </Button>
-                    </ButtonGroup>
-                  </Box>
-                </Box>
-
-                {/* Date Filters */}
-                <InlineStack gap="200" align="end">
-                  <Box minWidth="120px">
-                    <TextField
-                      label="From"
-                      type="date"
-                      value={startDate}
-                      onChange={setStartDate}
-                      autoComplete="off"
-                    />
-                  </Box>
-                  <Box minWidth="120px">
-                    <TextField
-                      label="To"
-                      type="date"
-                      value={endDate}
-                      onChange={setEndDate}
-                      autoComplete="off"
-                    />
-                  </Box>
-                  <Button 
-                    variant="primary" 
-                    onClick={handleApplyFilters}
+            <BlockStack gap="500">
+              <InlineStack align="space-between" wrap={false}>
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingLg">Activity Trends</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Questions and page views over time
+                  </Text>
+                </BlockStack>
+                <ButtonGroup>
+                  <Button
+                    pressed={chartType === "area"}
+                    onClick={() => setChartType("area")}
                   >
-                    Apply Filters
+                    Area
                   </Button>
-                </InlineStack>
+                  <Button
+                    pressed={chartType === "bar"}
+                    onClick={() => setChartType("bar")}
+                  >
+                    Bar
+                  </Button>
+                </ButtonGroup>
               </InlineStack>
 
-              {/* Chart */}
-              <Box minHeight="400px" background="bg-surface-secondary" padding="400" borderRadius="200">
-                {usageData.length > 0 ? (
-                  <div style={{ height: '350px' }}>
-                    {chartType === "area" ? 
-                      <Line data={data} options={options} /> : 
-                      <Bar data={data} options={options} />
-                    }
-                  </div>
-                ) : (
-                  <EmptyState
-                    heading="No data available"
-                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                  >
-                    <p>No questions found for the selected date range.</p>
-                  </EmptyState>
-                )}
-              </Box>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
+              {/* Questions Chart */}
+              <BlockStack gap="300">
+                <Text as="h3" variant="headingMd" tone="subdued">Customer Questions</Text>
+                <Box minHeight="300px" background="bg-surface-secondary" padding="400" borderRadius="200">
+                  {usageData.length > 0 ? (
+                    <div style={{ height: '280px' }}>
+                      {chartType === "area" ?
+                        <Line data={data} options={options} /> :
+                        <Bar data={data} options={options} />
+                      }
+                    </div>
+                  ) : (
+                    <EmptyState
+                      heading="No question data available"
+                      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                    >
+                      <p>No questions found for the selected date range.</p>
+                    </EmptyState>
+                  )}
+                </Box>
+              </BlockStack>
 
-        {/* Product Page Views Chart */}
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingLg">👀 Product Page Views</Text>
-              
-              {/* Chart */}
-              <Box minHeight="400px" background="bg-surface-secondary" padding="400" borderRadius="200">
-                {pageViewData.length > 0 ? (
-                  <div style={{ height: '350px' }}>
-                    {chartType === "area" ? 
-                      <Line 
-                        data={{
-                          labels: pageViewData.map((d: PageViewData) => formatDate(d.day)),
-                          datasets: [
-                            {
-                              label: "Page Views",
-                              data: pageViewData.map((d: PageViewData) => d.count),
-                              fill: true,
-                              backgroundColor: "rgba(16, 185, 129, 0.1)",
-                              borderColor: "#10b981",
-                              borderWidth: 2,
-                              tension: 0.4,
-                              pointBackgroundColor: "#10b981",
-                              pointBorderColor: "#ffffff",
-                              pointBorderWidth: 2,
-                              pointRadius: 4,
-                              pointHoverRadius: 6,
-                            },
-                          ],
-                        }}
-                        options={{
-                          ...options,
-                          plugins: {
-                            ...options.plugins,
-                            tooltip: {
-                              ...options.plugins.tooltip,
-                              callbacks: {
-                                title: function(context: any[]) {
-                                  return context[0].label;
-                                },
-                                label: function(context: any) {
-                                  return `Page Views: ${context.parsed.y}`;
-                                }
+              {/* Page Views Chart */}
+              <BlockStack gap="300">
+                <Text as="h3" variant="headingMd" tone="subdued">Product Page Views</Text>
+                <Box minHeight="300px" background="bg-surface-secondary" padding="400" borderRadius="200">
+                  {pageViewData.length > 0 ? (
+                    <div style={{ height: '280px' }}>
+                      {chartType === "area" ?
+                        <Line
+                          data={{
+                            labels: pageViewData.map((d: PageViewData) => formatDate(d.day)),
+                            datasets: [
+                              {
+                                label: "Page Views",
+                                data: pageViewData.map((d: PageViewData) => d.count),
+                                fill: true,
+                                backgroundColor: "rgba(16, 185, 129, 0.1)",
+                                borderColor: "#10b981",
+                                borderWidth: 2,
+                                tension: 0.4,
+                                pointBackgroundColor: "#10b981",
+                                pointBorderColor: "#ffffff",
+                                pointBorderWidth: 2,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                              },
+                            ],
+                          }}
+                          options={{
+                            ...options,
+                            plugins: {
+                              ...options.plugins,
+                              tooltip: {
+                                ...options.plugins.tooltip,
+                                borderColor: '#10b981',
                               }
                             }
-                          }
-                        } as const}
-                      /> : 
-                      <Bar 
-                        data={{
-                          labels: pageViewData.map((d: PageViewData) => formatDate(d.day)),
-                          datasets: [
-                            {
-                              label: "Page Views",
-                              data: pageViewData.map((d: PageViewData) => d.count),
-                              backgroundColor: "#10b981",
-                              borderColor: "#10b981",
-                              borderWidth: 2,
-                            },
-                          ],
-                        }}
-                        options={{
-                          ...options,
-                          plugins: {
-                            ...options.plugins,
-                            tooltip: {
-                              ...options.plugins.tooltip,
-                              callbacks: {
-                                title: function(context: any[]) {
-                                  return context[0].label;
-                                },
-                                label: function(context: any) {
-                                  return `Page Views: ${context.parsed.y}`;
-                                }
+                          } as const}
+                        /> :
+                        <Bar
+                          data={{
+                            labels: pageViewData.map((d: PageViewData) => formatDate(d.day)),
+                            datasets: [
+                              {
+                                label: "Page Views",
+                                data: pageViewData.map((d: PageViewData) => d.count),
+                                backgroundColor: "#10b981",
+                                borderColor: "#10b981",
+                                borderWidth: 2,
+                              },
+                            ],
+                          }}
+                          options={{
+                            ...options,
+                            plugins: {
+                              ...options.plugins,
+                              tooltip: {
+                                ...options.plugins.tooltip,
+                                borderColor: '#10b981',
                               }
                             }
-                          }
-                        } as const}
-                      />
-                    }
-                  </div>
+                          } as const}
+                        />
+                      }
+                    </div>
+                  ) : (
+                    <EmptyState
+                      heading="No page view data available"
+                      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                    >
+                      <p>No product page views tracked for the selected date range.</p>
+                    </EmptyState>
+                  )}
+                </Box>
+              </BlockStack>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Questions Insights - Side by Side */}
+        <Layout.Section>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1rem' }}>
+            {/* Most Asked Questions */}
+            <Card>
+              <BlockStack gap="400">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingLg">Most Asked Questions</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Top questions from your customers
+                  </Text>
+                </BlockStack>
+
+                {topQuestions.length > 0 ? (
+                  <DataTable
+                    columnContentTypes={['text', 'text']}
+                    headings={['Question', 'Count']}
+                    rows={tableRows}
+                    increasedTableDensity
+                    hoverable
+                  />
                 ) : (
-                  <EmptyState
-                    heading="No page view data available"
-                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                  >
-                    <p>No product page views tracked for the selected date range.</p>
-                  </EmptyState>
+                  <Box paddingBlockStart="400" paddingBlockEnd="400">
+                    <EmptyState
+                      heading="No questions yet"
+                      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                    >
+                      <p>When customers start asking questions, they'll appear here.</p>
+                    </EmptyState>
+                  </Box>
                 )}
-              </Box>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
+              </BlockStack>
+            </Card>
 
-        {/* Questions Table */}
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <Box>
-                <Text as="h2" variant="headingLg">🔍 Most Asked Questions</Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Top questions from your customers
-                </Text>
-              </Box>
-              
-              {topQuestions.length > 0 ? (
-                <DataTable
-                  columnContentTypes={['text', 'text']}
-                  headings={['Question', 'Times Asked']}
-                  rows={tableRows}
-                  increasedTableDensity
-                  hoverable
-                />
-              ) : (
-                <EmptyState
-                  heading="No questions yet"
-                  image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                >
-                  <p>When customers start asking questions, they'll appear here.</p>
-                </EmptyState>
-              )}
-            </BlockStack>
-          </Card>
-        </Layout.Section>
+            {/* Recent Questions */}
+            <Card>
+              <BlockStack gap="400">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingLg">Recent Activity</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Latest questions from customers
+                  </Text>
+                </BlockStack>
 
-        {/* Recent Questions */}
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <Box>
-                <Text as="h2" variant="headingLg">🕒 Recent Questions</Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Last 100 questions in the selected range
-                </Text>
-              </Box>
-              {recentQuestions && recentQuestions.length > 0 ? (
-                <DataTable
-                  columnContentTypes={['text', 'text']}
-                  headings={['Question', 'Asked At']}
-                  rows={recentQuestions.map((rq: any, idx: number) => [
-                    rq.question,
-                    new Date(rq.askedAt).toLocaleString()
-                  ])}
-                  increasedTableDensity
-                />
-              ) : (
-                <EmptyState
-                  heading="No recent questions"
-                  image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                >
-                  <p>No questions recorded for the selected date range.</p>
-                </EmptyState>
-              )}
-            </BlockStack>
-          </Card>
+                {recentQuestions && recentQuestions.length > 0 ? (
+                  <DataTable
+                    columnContentTypes={['text', 'text']}
+                    headings={['Question', 'When']}
+                    rows={recentQuestions.slice(0, 10).map((rq: any) => [
+                      rq.question,
+                      new Date(rq.askedAt).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit'
+                      })
+                    ])}
+                    increasedTableDensity
+                    hoverable
+                  />
+                ) : (
+                  <Box paddingBlockStart="400" paddingBlockEnd="400">
+                    <EmptyState
+                      heading="No recent questions"
+                      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                    >
+                      <p>No questions recorded for the selected date range.</p>
+                    </EmptyState>
+                  </Box>
+                )}
+              </BlockStack>
+            </Card>
+          </div>
         </Layout.Section>
       </Layout>
     </Page>

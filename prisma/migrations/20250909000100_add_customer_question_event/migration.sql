@@ -13,3 +13,6 @@ CREATE INDEX IF NOT EXISTS "CustomerQuestionEvent_shop_askedAt_idx" ON "public".
 CREATE INDEX IF NOT EXISTS "CustomerQuestionEvent_shop_questionNormalized_idx" ON "public"."CustomerQuestionEvent"("shop", "questionNormalized");
 
 
+
+
+

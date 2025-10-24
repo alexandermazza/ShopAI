@@ -9,19 +9,30 @@ import {
   TextField,
   Button,
   Text,
+  Banner,
 } from "@shopify/polaris";
 import { useState, useCallback } from "react";
+import { authenticate } from "../shopify.server";
+import { prisma } from "../db.server";
 
-// In-memory store context (replace with DB or metafield in production)
-// TODO: Replace in-memory storage with persistent storage (DB or Shopify metafield)
-let storeContext = "Provide details about your store, products, and policies here.";
+export async function loader({ request }: LoaderFunctionArgs) {
+  const { session } = await authenticate.admin(request);
 
-export async function loader({}: LoaderFunctionArgs) {
-  // In a real app, fetch this from your persistent storage (e.g., Shopify Metafield API)
-  return json({ storeContext });
+  // Fetch store-specific context from database
+  const storeInfo = await prisma.storeInformation.findUnique({
+    where: { shop: session.shop },
+    select: { additionalInfo: true }
+  });
+
+  const storeContext = storeInfo?.additionalInfo || "Provide details about your store, products, and policies here.";
+
+  console.log(`[Store Context] Loaded context for shop: ${session.shop}`);
+
+  return json({ storeContext, shop: session.shop });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  const { session } = await authenticate.admin(request);
   const formData = await request.formData();
   const context = formData.get("context");
 
@@ -33,14 +44,19 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: "Invalid or too long context." }, { status: 400 });
   }
 
-  // In a real app, save this to your persistent storage
-  storeContext = context;
-  console.log("Updated store context:", storeContext);
+  // Save to database with proper shop isolation
+  const storeInfo = await prisma.storeInformation.upsert({
+    where: { shop: session.shop },
+    update: { additionalInfo: context },
+    create: {
+      shop: session.shop,
+      additionalInfo: context
+    }
+  });
 
-  // It's often good practice to return the updated data or a success status
-  // Returning the context allows the UI to potentially update without a full page reload
-  // if using fetcher.Form and handling the fetcher state.
-  return json({ success: true, storeContext });
+  console.log(`[Store Context] Updated context for shop: ${session.shop}`);
+
+  return json({ success: true, storeContext: context });
 }
 
 // ----- React Component for Admin UI -----
@@ -67,27 +83,49 @@ export default function StoreContextAdminPage() {
     <Page title="Store Context for AI">
       <Layout>
         <Layout.Section>
+          <Banner tone="warning">
+            <p>
+              <strong>Privacy Notice:</strong> This information will be shared with ALL your customers through the AI assistant.
+              Do NOT include customer-specific data, or sensitive information.
+            </p>
+          </Banner>
+        </Layout.Section>
+        <Layout.Section>
+          <Banner tone="info">
+            <p>
+              Store: <strong>{loaderData.shop}</strong> - Your data is private to your store only.
+            </p>
+          </Banner>
+        </Layout.Section>
+        <Layout.Section>
           <Card>
             <fetcher.Form method="post">
               <FormLayout>
                 <Text variant="bodyMd" as="p">
-                  Provide information about your store that the AI assistant can use
-                  to answer customer questions. Include details about your brand,
-                  unique selling points, return policy, shipping details, etc.
+                  Provide <strong>general information</strong> about your store that the AI can share with customers.
+                  Include: brand story, return policy, shipping details, public policies, etc.
+                </Text>
+                <Text variant="bodyMd" as="p" tone="critical">
+                  <strong>Do NOT include:</strong> Customer names, order details, or any customer-specific information.
                 </Text>
                 <TextField
-                  label="Store Context"
+                  label="Public Store Information"
                   name="context"
                   value={formState}
                   onChange={handleContextChange}
                   multiline={10}
                   autoComplete="off"
-                  helpText="Maximum 5000 characters."
+                  helpText="Maximum 5000 characters. This information will be visible to all customers asking the AI questions."
                   error={fetcher.data && 'error' in fetcher.data ? fetcher.data.error : undefined}
                 />
                 <Button submit loading={isSubmitting} variant="primary">
                   {isSubmitting ? "Saving..." : isSaved ? "Saved!" : "Save Context"}
                 </Button>
+                {isSaved && (
+                  <Banner tone="success">
+                    <p>Store context saved successfully!</p>
+                  </Banner>
+                )}
               </FormLayout>
             </fetcher.Form>
           </Card>

@@ -7,6 +7,7 @@ import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prism
 import { restResources } from "@shopify/shopify-api/rest/admin/2024-04"; // Ensure this API version is appropriate for your app
 import { prisma } from "./db.server"; // Make sure this path is correct and prisma is exported
 import crypto from "crypto";
+import { billingConfig } from "./utils/billing.server";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -17,21 +18,23 @@ const shopify = shopifyApp({
   restResources,
   sessionStorage: new PrismaSessionStorage(prisma),
   isEmbeddedApp: true,
+  billing: billingConfig,
   // Example of more detailed logging, uncomment if needed:
   // logger: {
   //   level: LogSeverity.Debug,
   //   timestamps: true,
   // },
-  future: { 
+  future: {
     // Enable new embedded authentication strategy (fixes cookie issues)
     unstable_newEmbeddedAuthStrategy: true,
     v3_webhookAdminContext: true,
-  }, 
+  },
 });
 
 export default shopify;
 export const apiVersion = LATEST_API_VERSION;
 export const authenticate = shopify.authenticate; // This is the missing export
+export const billing = shopify.billing; // Export billing utilities
 
 /**
  * Sets the necessary HTTP headers for Shopify app development.

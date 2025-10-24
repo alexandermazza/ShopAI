@@ -23,7 +23,9 @@
     "minify": "npm run minify:text-generate && npm run minify:ask-me-anything && npm run minify:review-summary",
     "minify:text-generate": "terser extensions/shop-ai/assets/text-generate-effect.js --compress --mangle --source-map --output extensions/shop-ai/assets/text-generate-effect.min.js",
     "minify:ask-me-anything": "terser extensions/shop-ai/assets/ask-me-anything.js --compress --mangle --source-map --output extensions/shop-ai/assets/ask-me-anything.min.js",
-    "minify:review-summary": "terser extensions/shop-ai/assets/review-summary.js --compress --mangle --source-map --output extensions/shop-ai/assets/review-summary.min.js"
+    "minify:review-summary": "terser extensions/shop-ai/assets/review-summary.js --compress --mangle --source-map --output extensions/shop-ai/assets/review-summary.min.js",
+    "billing:verify": "npx tsx scripts/verify-billing.ts",
+    "billing:status": "npx tsx scripts/check-billing-status.ts"
   },
   "type": "module",
   "engines": {

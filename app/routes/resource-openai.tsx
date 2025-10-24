@@ -3,8 +3,7 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import OpenAI from "openai";
 import { prisma } from "../db.server";
-
-// OpenAI client will be initialized inside the action function
+import { hasActiveSubscriptionViaAPI } from "../utils/billing-check.server";
 
 // Helper function to get store information
 async function getStoreInformation(shop: string) {
@@ -76,7 +75,7 @@ function buildMessagesWithImages(textContent: string, imageUrls: string[] = []) 
 // Action function to handle POST requests
 export async function action({ request }: ActionFunctionArgs) {
   console.log("🚀 RESOURCE-OPENAI ROUTE HIT!");
-  
+
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
@@ -85,17 +84,27 @@ export async function action({ request }: ActionFunctionArgs) {
     // Extract shop from URL query parameters (App Proxy sends it in URL)
     const url = new URL(request.url);
     const shopFromUrl = url.searchParams.get('shop') || '';
-    
+
     // Read the potential fields from JSON body
     const { operation, question, productContext, language, toneOfVoice, productImages } = await request.json();
 
     // Get store information - shop comes from URL query params in App Proxy
     const shopDomain = shopFromUrl || request.headers.get('x-shop-domain') || '';
     console.log("🏪 Shop domain:", shopDomain);
-    
+
+    // Check if store has active subscription (checks Shopify API for app credits/trials)
+    const hasSubscription = await hasActiveSubscriptionViaAPI(shopDomain);
+    if (!hasSubscription) {
+      console.warn(`🚫 Subscription required for shop: ${shopDomain}`);
+      return json({
+        error: "This feature requires an active ShopAI Pro subscription. Please subscribe in your Shopify admin to continue using AI-powered features.",
+        requiresSubscription: true
+      }, { status: 402 }); // 402 Payment Required
+    }
+
     const storeInfo = await getStoreInformation(shopDomain);
     console.log("🏪 Store info found:", storeInfo ? "Yes" : "No");
-    
+
     const storeContext = buildStoreContext(storeInfo);
     console.log("🏪 Store context length:", storeContext.length);
     if (storeContext.length > 0) {

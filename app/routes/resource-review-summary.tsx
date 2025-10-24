@@ -3,8 +3,7 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 // Use the standard OpenAI client directly for testing
 import OpenAI from "openai";
-
-// OpenAI client will be initialized inside the action function
+import { hasActiveSubscriptionViaAPI } from "../utils/billing-check.server";
 
 // No default export - this makes it a resource route!
 
@@ -12,6 +11,21 @@ export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== "POST") {
     console.error("Error: Method not allowed");
     return new Response("Error: Method not allowed\n", { status: 405, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  }
+
+  // Extract shop from URL query parameters (App Proxy sends it in URL)
+  const url = new URL(request.url);
+  const shopDomain = url.searchParams.get('shop') || '';
+  console.log("🏪 Shop domain:", shopDomain);
+
+  // Check if store has active subscription (checks Shopify API for app credits/trials)
+  const hasSubscription = await hasActiveSubscriptionViaAPI(shopDomain);
+  if (!hasSubscription) {
+    console.warn(`🚫 Subscription required for shop: ${shopDomain}`);
+    return json({
+      error: "This feature requires an active ShopAI Pro subscription. Please subscribe in your Shopify admin to continue using AI-powered features.",
+      requiresSubscription: true
+    }, { status: 402 }); // 402 Payment Required
   }
 
   let scrapedReviews: string | undefined;

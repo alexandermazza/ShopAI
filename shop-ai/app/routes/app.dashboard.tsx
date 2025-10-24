@@ -137,7 +137,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     dailyMap.set(key, (dailyMap.get(key) || 0) + 1);
   });
 
-  const usageData: UsageData[] = Array.from(dailyMap.entries()).map(([day, count]) => ({ day, count }));
+  let usageData: UsageData[] = Array.from(dailyMap.entries()).map(([day, count]) => ({ day, count }));
 
   // Aggregate page view counts per day using local day key
   const pageViewDailyMap = new Map<string, number>();
@@ -148,9 +148,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const pageViewData: PageViewData[] = Array.from(pageViewDailyMap.entries()).map(([day, count]) => ({ day, count }));
 
-  const totalQuestions = questionEvents.length;
-  const uniqueQuestions = new Set(questionEvents.map((e: any) => e.questionNormalized)).size;
-  const avgQuestionsPerDay = usageData.length ? totalQuestions / usageData.length : 0;
+  let totalQuestions = questionEvents.length;
+  let uniqueQuestions = new Set(questionEvents.map((e: any) => e.questionNormalized)).size;
+  let avgQuestionsPerDay = usageData.length ? totalQuestions / usageData.length : 0;
   
   const totalPageViews = pageViews.length;
   const avgPageViewsPerDay = pageViewData.length ? totalPageViews / pageViewData.length : 0;
@@ -168,6 +168,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       times: "desc",
     },
   });
+
+  if (questionEvents.length === 0) {
+    const summaryQuestions = await prisma.customerQuestion.findMany({
+      where: {
+        shop: session.shop,
+        askedAt: { gte: startDate, lte: endDate },
+      },
+      orderBy: { askedAt: "asc" },
+    });
+    const fallbackMap = new Map<string, number>();
+    summaryQuestions.forEach((q: any) => {
+      const key = toLocalDayKey(new Date(q.askedAt));
+      const incrementBy = typeof q.times === 'number' ? q.times : 1;
+      fallbackMap.set(key, (fallbackMap.get(key) || 0) + incrementBy);
+    });
+    usageData = Array.from(fallbackMap.entries()).map(([day, count]) => ({ day, count }));
+    totalQuestions = summaryQuestions.reduce((acc: number, q: any) => acc + (q.times || 1), 0);
+    uniqueQuestions = summaryQuestions.length;
+    avgQuestionsPerDay = usageData.length ? totalQuestions / usageData.length : 0;
+  }
 
   const metrics: Metrics = { 
     totalQuestions, 
@@ -187,10 +207,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 
   // Fetch recent questions list (events) limited for UI
-  const recentQuestions = questionEvents
+  let recentQuestions = questionEvents
     .slice(-100)
     .reverse()
     .map((e: any) => ({ question: e.questionRaw, askedAt: e.askedAt }));
+  if (recentQuestions.length === 0) {
+    const recentFromSummary = await prisma.customerQuestion.findMany({
+      where: { shop: session.shop },
+      orderBy: { askedAt: "desc" },
+      take: 100,
+    });
+    recentQuestions = recentFromSummary.map((q: any) => ({ question: q.question, askedAt: q.askedAt }));
+  }
 
   return json({ 
     usageData, 

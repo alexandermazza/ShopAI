@@ -1,4 +1,5 @@
 import { prisma } from "../db.server";
+import { PLAN_FEATURES } from "./billing.server";
 
 export interface PlanLimits {
   monthlyQuestions: number;
@@ -6,24 +7,18 @@ export interface PlanLimits {
   priority: "low" | "medium" | "high";
 }
 
-// Shopify plan names mapping - update these to match your actual Shopify app plans
+// Shopify plan names mapping - synced with billing.server.ts
 export const SHOPIFY_PLAN_CONFIGS: Record<string, PlanLimits> = {
-  "Free Plan": {
-    monthlyQuestions: -1, // unlimited for now until usage-based pricing is implemented
-    features: ["basic_chat", "question_tracking"],
-    priority: "low"
-  },
   "Pro Plan": {
-    monthlyQuestions: -1, // unlimited for now until usage-based pricing is implemented
-    features: ["basic_chat", "question_tracking", "analytics", "advanced_ai", "priority_support"],
-    priority: "high"
+    monthlyQuestions: PLAN_FEATURES["Pro Plan"].monthlyQuestions,
+    features: PLAN_FEATURES["Pro Plan"].features,
+    priority: PLAN_FEATURES["Pro Plan"].priority,
   },
-  // Add more actual Shopify plan names here as needed
 };
 
-// Default plan config for unknown plans
+// Default plan config for unknown plans (no active subscription)
 const DEFAULT_PLAN_CONFIG: PlanLimits = {
-  monthlyQuestions: -1, // unlimited for now
+  monthlyQuestions: 100, // Limited for free/trial users
   features: ["basic_chat", "question_tracking"],
   priority: "low"
 };
@@ -70,7 +65,7 @@ export async function updateStoreReferralCode({
 }
 
 /**
- * Update store plan (for future use when integrating with Shopify billing)
+ * Update store plan (called from billing webhooks and callbacks)
  */
 export async function updateStorePlan({
   shop,
@@ -82,6 +77,8 @@ export async function updateStorePlan({
   referralCode?: string;
 }) {
   const planLimits = SHOPIFY_PLAN_CONFIGS[plan] || DEFAULT_PLAN_CONFIG;
+
+  console.log(`[Plan Management] Updating store ${shop} to plan: ${plan}`, planLimits);
 
   // First, check if store info exists
   const existingStore = await prisma.storeInformation.findUnique({
@@ -124,24 +121,21 @@ export async function incrementQuestionCount(shop: string) {
   });
 
   if (!storeInfo) {
-    // Create default free plan if none exists
-    await updateStorePlan({ shop, plan: "Free Plan" });
-    return { allowed: true, remaining: -1 }; // Unlimited for now
+    // Create default store record if none exists
+    await prisma.storeInformation.create({
+      data: {
+        shop,
+        pricingPlan: null, // No plan yet
+        planLimits: DEFAULT_PLAN_CONFIG,
+        monthlyQuestions: 1,
+      }
+    });
+    return { allowed: true, remaining: DEFAULT_PLAN_CONFIG.monthlyQuestions - 1 };
   }
 
-  const planLimits = SHOPIFY_PLAN_CONFIGS[storeInfo.pricingPlan || "Free Plan"] || DEFAULT_PLAN_CONFIG;
+  const planLimits = SHOPIFY_PLAN_CONFIGS[storeInfo.pricingPlan || ""] || DEFAULT_PLAN_CONFIG;
   const currentUsage = storeInfo.monthlyQuestions || 0;
 
-  // For now, all plans are unlimited until usage-based pricing is implemented
-  await prisma.storeInformation.update({
-    where: { shop },
-    data: { monthlyQuestions: currentUsage + 1 }
-  });
-  
-  return { allowed: true, remaining: -1 }; // Unlimited for now
-
-  // TODO: Re-enable this when usage-based pricing is implemented
-  /*
   // Check if unlimited plan
   if (planLimits.monthlyQuestions === -1) {
     await prisma.storeInformation.update({
@@ -153,10 +147,10 @@ export async function incrementQuestionCount(shop: string) {
 
   // Check if within limits
   if (currentUsage >= planLimits.monthlyQuestions) {
-    return { 
-      allowed: false, 
+    return {
+      allowed: false,
       remaining: 0,
-      message: `Monthly limit of ${planLimits.monthlyQuestions} questions reached. Please upgrade your plan.`
+      message: `Monthly limit of ${planLimits.monthlyQuestions} questions reached. Please subscribe to Pro Plan for unlimited questions.`
     };
   }
 
@@ -166,11 +160,10 @@ export async function incrementQuestionCount(shop: string) {
     data: { monthlyQuestions: currentUsage + 1 }
   });
 
-  return { 
-    allowed: true, 
-    remaining: planLimits.monthlyQuestions - (currentUsage + 1) 
+  return {
+    allowed: true,
+    remaining: planLimits.monthlyQuestions - (currentUsage + 1)
   };
-  */
 }
 
 /**
@@ -190,7 +183,7 @@ export async function getStoresForReferralPayout() {
     where: {
       referralCode: { not: null },
       referrerPayoutId: null,
-      pricingPlan: { not: "free" }, // Only paid plans qualify for referral payouts
+      pricingPlan: "Pro Plan", // Only Pro Plan qualifies for referral payouts
     },
     select: {
       shop: true,
