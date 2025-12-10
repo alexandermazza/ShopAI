@@ -21,6 +21,8 @@ import { authenticate } from "../shopify.server";
 // @ts-ignore - db.server.js is a JavaScript file
 import { prisma } from "../db.server";
 import { getBillingStatus } from "../utils/billing-check.server";
+import { UsageMeter } from "../components/UsageMeter";
+import { UpgradeBanner } from "../components/UpgradeBanner";
 
 export const loader = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
@@ -39,15 +41,24 @@ export const loader = async ({ request }) => {
     console.error("Error loading store information:", error);
   }
 
+  // Calculate reset date (first day of next month)
+  const now = new Date();
+  const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
   return {
     storeInfo,
     hasActivePayment: billingStatus.hasActivePayment,
+    usage: storeInfo ? {
+      questionsUsed: storeInfo.monthlyQuestions || 0,
+      summariesUsed: storeInfo.reviewSummariesGenerated || 0,
+      resetDate: resetDate.toISOString(),
+    } : null,
   };
 };
 
 export default function Index() {
   const app = useAppBridge();
-  const { storeInfo, hasActivePayment } = useLoaderData();
+  const { storeInfo, hasActivePayment, usage } = useLoaderData();
   const fetcher = useFetcher();
   const [searchParams] = useSearchParams();
 
@@ -166,23 +177,40 @@ export default function Index() {
             <p>Your subscription is now active. Enjoy unlimited AI-powered customer questions!</p>
           </Banner>
         )}
-        {!hasActivePayment && (
+        {!hasActivePayment && usage && (
+          <UsageMeter
+            questionsUsed={usage.questionsUsed}
+            questionsLimit={50}
+            summariesUsed={usage.summariesUsed}
+            summariesLimit={10}
+            resetDate={new Date(usage.resetDate)}
+          />
+        )}
+        {!hasActivePayment && !usage && (
           <Banner
-            title="Subscription Required"
-            tone="warning"
+            title="Free Plan Active"
+            tone="info"
             action={{
-              content: "Subscribe Now",
+              content: "View Plans",
               url: "/app/pricing",
             }}
           >
             <p>
-              You need an active ShopAI Pro subscription to use AI features on your product pages.
+              You're using the Free Plan with 50 questions and 10 review summaries per month.
             </p>
           </Banner>
         )}
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (
             <Layout>
+              {!hasActivePayment && (
+                <Layout.Section>
+                  <UpgradeBanner
+                    title="Upgrade to Pro Plan"
+                    message="Get unlimited AI questions, unlimited review summaries, and priority support. Start converting more customers today!"
+                  />
+                </Layout.Section>
+              )}
               <Layout.Section>
                 <Card>
                   <BlockStack gap="500">

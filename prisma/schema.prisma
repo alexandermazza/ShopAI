@@ -32,29 +32,37 @@ model Session {
 }
 
 model StoreInformation {
-  id                  String   @id @default(cuid())
-  shop                String   @unique
-  storeName           String?
-  storeDescription    String?
-  shippingPolicy      String?
-  returnPolicy        String?
-  storeHours          String?
-  contactInfo         String?
-  specialServices     String?
-  aboutUs             String?
-  additionalInfo      String?
+  id                      String    @id @default(cuid())
+  shop                    String    @unique
+  storeName               String?
+  storeDescription        String?
+  shippingPolicy          String?
+  returnPolicy            String?
+  storeHours              String?
+  contactInfo             String?
+  specialServices         String?
+  aboutUs                 String?
+  additionalInfo          String?
   // Billing and plan tracking
-  pricingPlan         String?  // "Pro Plan" or null (for no active subscription)
-  planStartDate       DateTime?
-  referralCode        String?  // Code used when signing up
-  referrerPayoutId    String?  // Track if referrer has been paid
-  monthlyQuestions    Int?     @default(0) // Track usage against plan limits
-  planLimits          Json?    // Store plan-specific limits as JSON
-  subscriptionId      String?  // Shopify subscription ID
-  subscriptionStatus  String?  // ACTIVE, CANCELLED, EXPIRED, etc.
-  trialEndsAt         DateTime? // When free trial ends
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  pricingPlan             String?   // "Pro Plan", "Free Plan", or null
+  planStartDate           DateTime?
+  referralCode            String?   // Code used when signing up
+  referrerPayoutId        String?   // Track if referrer has been paid
+  monthlyQuestions        Int       @default(0) // Track usage against plan limits
+  questionMonthStart      DateTime? // Track which billing month for questions
+  reviewSummariesGenerated Int      @default(0) // Track review summary usage
+  reviewMonthStart        DateTime? // Track which billing month for review summaries
+  planLimits              Json?     // Store plan-specific limits as JSON
+  subscriptionId          String?   // Shopify subscription ID
+  subscriptionStatus      String?   // ACTIVE, CANCELLED, EXPIRED, etc.
+  trialEndsAt             DateTime? // When free trial ends
+  // Onboarding tracking
+  onboardingCompleted     Boolean   @default(false)
+  widgetInstalled         Boolean   @default(false)
+  storeContextCompleted   Boolean   @default(false)
+  setupCompletedAt        DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 }
 
 model CustomerQuestion {
@@ -90,4 +98,19 @@ model ProductPageView {
   userAgent String?
 
   @@index([shop, viewedAt])
+}
+
+/// Cache for review summaries to prevent unlimited token consumption
+model ReviewSummaryCache {
+  id           String   @id @default(cuid())
+  shop         String
+  productId    String
+  summary      String   @db.Text
+  reviewCount  Int
+  reviewHash   String   // MD5 of review IDs to detect changes
+  generatedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([shop, productId])
+  @@index([shop, generatedAt])
 }

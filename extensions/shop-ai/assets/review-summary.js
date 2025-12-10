@@ -336,12 +336,43 @@ const ReviewSummary = {
         return;
     }
 
-    // --- Reviews found, fetch summary --- 
+    // --- Reviews found, fetch summary ---
     console.log(">>> ReviewSummary: Elements Check:", { containerElement, summaryContentElement, responseArea, attributionElement }); // Log elements
     responseArea.classList.add('loading'); // Show loading state
 
+    // Extract productId for caching (multi-tier approach)
+    let productId = null;
+
+    // Tier 1: Try ShopifyAnalytics (preferred - gives numeric product ID)
+    if (window.ShopifyAnalytics && window.ShopifyAnalytics.meta && window.ShopifyAnalytics.meta.product) {
+      productId = window.ShopifyAnalytics.meta.product.id?.toString();
+      console.log(">>> ReviewSummary: Extracted productId from ShopifyAnalytics:", productId);
+    }
+
+    // Tier 2: Parse product handle from URL (reliable fallback)
+    if (!productId) {
+      const path = window.location.pathname;
+      const match = path.match(/\/products\/([^/?]+)/);
+      if (match) {
+        productId = match[1]; // Product handle (e.g., "awesome-widget")
+        console.log(">>> ReviewSummary: Extracted productId from URL:", productId);
+      }
+    }
+
+    // Tier 3: Try window.meta as final fallback
+    if (!productId && window.meta && window.meta.product) {
+      productId = window.meta.product.id?.toString();
+      console.log(">>> ReviewSummary: Extracted productId from window.meta:", productId);
+    }
+
+    if (!productId) {
+      console.warn(">>> ReviewSummary: Could not extract productId from any source (caching disabled)");
+    } else {
+      console.log(">>> ReviewSummary: Final productId for caching:", productId);
+    }
+
     // Use the App Proxy path for the new resource route
-    const apiUrl = '/apps/proxy/resource-review-summary'; 
+    const apiUrl = '/apps/proxy/resource-review-summary';
 
     console.log(">>> ReviewSummary: BEFORE fetch call"); // Log before fetch
 
@@ -353,6 +384,7 @@ const ReviewSummary = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          productId: productId, // Send productId for caching
           scrapedReviews: scrapedReviews, // Send scraped reviews
           toneOfVoice: toneOfVoice !== 'default' ? toneOfVoice : undefined // Only send if not default
         }),

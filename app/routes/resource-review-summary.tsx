@@ -1,11 +1,26 @@
 // shop-ai/app/routes/resource-review-summary.tsx - Resource route for AI review summarization
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import crypto from "crypto";
 // Use the standard OpenAI client directly for testing
 import OpenAI from "openai";
-import { hasActiveSubscriptionViaAPI } from "../utils/billing-check.server";
+import { hasActiveSubscriptionViaAPI, getBillingStatus } from "../utils/billing-check.server";
+import { checkReviewSummaryLimit, incrementReviewSummaryCount } from "../utils/plan-management.server";
+import { prisma } from "../db.server";
+import { authenticate } from "../shopify.server";
 
 // No default export - this makes it a resource route!
+
+// Helper function to generate content hash for cache invalidation
+function generateReviewHash(scrapedReviews: string, reviewCount: number): string {
+  const content = `${scrapedReviews}|${reviewCount}`;
+  return crypto.createHash('md5').update(content).digest('hex');
+}
+
+// Helper function to count reviews from scraped content
+function countReviews(scrapedReviews: string): number {
+  return scrapedReviews.split('\n').filter(line => line.trim()).length;
+}
 
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -18,23 +33,17 @@ export async function action({ request }: ActionFunctionArgs) {
   const shopDomain = url.searchParams.get('shop') || '';
   console.log("🏪 Shop domain:", shopDomain);
 
-  // Check if store has active subscription (checks Shopify API for app credits/trials)
-  const hasSubscription = await hasActiveSubscriptionViaAPI(shopDomain);
-  if (!hasSubscription) {
-    console.warn(`🚫 Subscription required for shop: ${shopDomain}`);
-    return json({
-      error: "This feature requires an active ShopAI Pro subscription. Please subscribe in your Shopify admin to continue using AI-powered features.",
-      requiresSubscription: true
-    }, { status: 402 }); // 402 Payment Required
-  }
-
+  // Parse request body
+  let productId: string | undefined;
   let scrapedReviews: string | undefined;
   let toneOfVoice: string | undefined;
   try {
     const body = await request.json();
     console.log("Received request body:", body);
+    productId = body.productId;
     scrapedReviews = body.scrapedReviews;
     toneOfVoice = body.toneOfVoice;
+    console.log("Received productId:", productId);
     console.log("Received scrapedReviews:", scrapedReviews);
     console.log("Received toneOfVoice:", toneOfVoice);
   } catch (e) {
@@ -47,10 +56,82 @@ export async function action({ request }: ActionFunctionArgs) {
     return new Response("Error: Missing scraped review content\n", { status: 400, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
 
+  // ProductId is optional - if not provided, caching won't work but generation will still proceed
+  if (!productId) {
+    console.warn("⚠️ ProductId not provided - caching disabled for this request");
+  }
+
   const MAX_REVIEW_TEXT_LENGTH = 12000; // Doubled to handle more review content
   if (scrapedReviews.length > MAX_REVIEW_TEXT_LENGTH) {
     console.error(`Review content exceeds maximum length: ${scrapedReviews.length}`);
     return new Response(`Error: Review content exceeds maximum length of ${MAX_REVIEW_TEXT_LENGTH} characters.\n`, { status: 400, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  }
+
+  // Count reviews and generate hash for cache invalidation
+  const reviewCount = countReviews(scrapedReviews);
+  const reviewHash = generateReviewHash(scrapedReviews, reviewCount);
+  console.log(`📊 Review count: ${reviewCount}, Hash: ${reviewHash}`);
+
+  // Check cache first (before billing/limit checks for performance) - only if productId is available
+  if (productId) {
+    try {
+      const cachedSummary = await prisma.reviewSummaryCache.findUnique({
+        where: {
+          shop_productId: {
+            shop: shopDomain,
+            productId: productId
+          }
+        }
+      });
+
+      if (cachedSummary) {
+        // Check if cache is fresh (< 30 days old)
+        const cacheAge = Date.now() - cachedSummary.generatedAt.getTime();
+        const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+        const isFresh = cacheAge < thirtyDaysMs;
+
+        // Check if content matches
+        const contentMatches = cachedSummary.reviewHash === reviewHash;
+
+        if (isFresh && contentMatches) {
+          console.log(`✅ Cache HIT: Returning cached summary (age: ${Math.floor(cacheAge / (24 * 60 * 60 * 1000))} days)`);
+          return json({ summary: cachedSummary.summary, cached: true });
+        } else {
+          console.log(`🔄 Cache STALE: isFresh=${isFresh}, contentMatches=${contentMatches}`);
+        }
+      } else {
+        console.log("❌ Cache MISS: No cached summary found");
+      }
+    } catch (error) {
+      console.error("Error checking cache:", error);
+      // Continue with generation if cache check fails
+    }
+  } else {
+    console.log("⏭️ Skipping cache check - no productId provided");
+  }
+
+  // Check billing status and limits
+  const hasSubscription = await hasActiveSubscriptionViaAPI(shopDomain);
+
+  if (!hasSubscription) {
+    // Free tier: check usage limits
+    console.log("🆓 Free tier user - checking usage limits");
+    const limitCheck = await checkReviewSummaryLimit(shopDomain);
+
+    if (!limitCheck.allowed) {
+      console.warn(`🚫 Review summary limit reached for shop: ${shopDomain}`);
+      return json({
+        error: "Monthly limit of 10 review summaries reached. Upgrade to Pro Plan for unlimited summaries.",
+        requiresUpgrade: true,
+        usage: {
+          remaining: limitCheck.remaining,
+          limit: limitCheck.limit
+        }
+      }, { status: 429 }); // 429 Too Many Requests
+    }
+    console.log(`✅ Free tier within limits: ${limitCheck.remaining} remaining`);
+  } else {
+    console.log("💎 Pro user - unlimited summaries");
   }
 
   try {
@@ -112,8 +193,53 @@ Very Concise Summary (2-3 sentences):`;
     const answer = completion.choices[0]?.message?.content?.trim() ??
       "Sorry, I couldn't generate a summary (non-streaming test).";
 
+    // Save/update cache in database (only if productId is available)
+    if (productId) {
+      try {
+        await prisma.reviewSummaryCache.upsert({
+          where: {
+            shop_productId: {
+              shop: shopDomain,
+              productId: productId
+            }
+          },
+          update: {
+            summary: answer,
+            reviewCount: reviewCount,
+            reviewHash: reviewHash,
+            generatedAt: new Date(),
+            updatedAt: new Date()
+          },
+          create: {
+            shop: shopDomain,
+            productId: productId,
+            summary: answer,
+            reviewCount: reviewCount,
+            reviewHash: reviewHash
+          }
+        });
+        console.log("💾 Cache saved successfully");
+      } catch (cacheError) {
+        console.error("Error saving cache (non-critical):", cacheError);
+        // Don't fail the request if cache save fails
+      }
+    } else {
+      console.log("⏭️ Skipping cache save - no productId provided");
+    }
+
+    // Increment usage counter for FREE tier only
+    if (!hasSubscription) {
+      try {
+        await incrementReviewSummaryCount(shopDomain);
+        console.log("📈 Usage counter incremented for free tier");
+      } catch (countError) {
+        console.error("Error incrementing usage counter (non-critical):", countError);
+        // Don't fail the request if counter increment fails
+      }
+    }
+
     // Return as JSON, not a stream
-    return json({ summary: answer });
+    return json({ summary: answer, cached: false });
 
   } catch (error) {
     // Keep the enhanced error logging for now

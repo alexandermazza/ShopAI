@@ -36,6 +36,8 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { prisma } from "../db.server";
 import { authenticate } from "../shopify.server";
+import { getBillingStatus } from "../utils/billing-check.server";
+import { UpgradeBanner } from "../components/UpgradeBanner";
 
 // Register chart components
 ChartJS.register(LineElement, BarElement, CategoryScale, LinearScale, PointElement, Filler, Tooltip, Legend);
@@ -75,7 +77,10 @@ interface Metrics {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+
+  // Check billing status
+  const billingStatus = await getBillingStatus(admin);
 
   const url = new URL(request.url);
   const startParam = url.searchParams.get("start");
@@ -206,19 +211,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     recentQuestions = recentFromSummary.map((q: any) => ({ question: q.question, askedAt: q.askedAt }));
   }
 
-  return json({ 
-    usageData, 
+  return json({
+    usageData,
     pageViewData,
-    topQuestions, 
+    topQuestions,
     recentQuestions,
-    start: startDate.toISOString().split("T")[0], 
+    start: startDate.toISOString().split("T")[0],
     end: endDate.toISOString().split("T")[0],
-    metrics
+    metrics,
+    hasActivePayment: billingStatus.hasActivePayment
   });
 };
 
 export default function Dashboard() {
-  const { usageData, pageViewData, topQuestions, recentQuestions, start, end, metrics } = useLoaderData<typeof loader>();
+  const { usageData, pageViewData, topQuestions, recentQuestions, start, end, metrics, hasActivePayment } = useLoaderData<typeof loader>();
   const [chartType, setChartType] = useState<"area" | "bar">("area");
   const [startDate, setStartDate] = useState(start);
   const [endDate, setEndDate] = useState(end);
@@ -308,6 +314,16 @@ export default function Dashboard() {
       <TitleBar title="Dashboard" />
 
       <Layout>
+        {/* Upgrade Banner for Free Users */}
+        {!hasActivePayment && (
+          <Layout.Section>
+            <UpgradeBanner
+              title="Unlock Full Analytics with Pro"
+              message="Upgrade to Pro Plan for unlimited questions, unlimited review summaries, and advanced analytics insights."
+            />
+          </Layout.Section>
+        )}
+
         {/* Date Range Filter - Top of page */}
         <Layout.Section>
           <Card>

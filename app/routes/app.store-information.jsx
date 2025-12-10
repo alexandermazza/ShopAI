@@ -16,21 +16,26 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { prisma } from "../db.server";
+import { getBillingStatus } from "../utils/billing-check.server";
+import { UpgradeBanner } from "../components/UpgradeBanner";
 
 export const loader = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
-  
+  const { admin, session } = await authenticate.admin(request);
+
+  // Check billing status
+  const billingStatus = await getBillingStatus(admin);
+
   try {
     console.log("🔍 Loading store info for shop:", session.shop);
     const storeInfo = await prisma.storeInformation.findUnique({
       where: { shop: session.shop }
     });
     console.log("📊 Store info found:", storeInfo ? "Yes" : "No", storeInfo ? `(${Object.keys(storeInfo).length} fields)` : "");
-    
-    return json({ storeInfo });
+
+    return json({ storeInfo, hasActivePayment: billingStatus.hasActivePayment });
   } catch (error) {
     console.error("❌ Error loading store information:", error);
-    return json({ storeInfo: null, error: "Failed to load store information" });
+    return json({ storeInfo: null, error: "Failed to load store information", hasActivePayment: false });
   }
 };
 
@@ -102,7 +107,7 @@ export const action = async ({ request }) => {
 };
 
 export default function StoreInformation() {
-  const { storeInfo } = useLoaderData();
+  const { storeInfo, hasActivePayment } = useLoaderData();
   const fetcher = useFetcher();
   
   const [formData, setFormData] = useState({
@@ -171,6 +176,14 @@ export default function StoreInformation() {
     <Page>
       <TitleBar title="Store Information" />
       <Layout>
+        {!hasActivePayment && (
+          <Layout.Section>
+            <UpgradeBanner
+              title="Enhance AI Responses with Pro"
+              message="Pro Plan users get better AI responses with advanced context understanding. Upgrade for unlimited questions and priority support."
+            />
+          </Layout.Section>
+        )}
         <Layout.Section>
           <Card>
             <BlockStack gap="500">
