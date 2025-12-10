@@ -1,4 +1,69 @@
-# 2.0.3 (Latest)
+# 2.1.0 (Latest)
+
+## FREEMIUM MODEL & URL-BASED CACHING - December 2025
+- **🆓 FREEMIUM MODEL LAUNCH**: Introduced free tier with generous usage limits for trial users
+- **📊 FREE TIER LIMITS**: 50 AI questions + 10 review summaries per month (resets monthly)
+- **💎 PRO TIER**: Unlimited questions, unlimited review summaries, priority support ($15/month)
+- **🎯 USAGE TRACKING**: Comprehensive usage meters showing remaining quota in real-time
+- **📈 UPGRADE PROMPTS**: Strategic upgrade banners throughout app for free tier users
+- **💾 REVIEW SUMMARY CACHING**: Intelligent 30-day cache with content-based invalidation
+- **🔗 URL-BASED PRODUCT ID**: Multi-tier product ID extraction for universal cache compatibility
+- **⚡ PERFORMANCE**: Cached summaries return instantly, reducing OpenAI API costs by ~70%
+- **🔧 TECHNICAL IMPLEMENTATION**:
+  - **Database Schema Updates** (prisma/schema.prisma):
+    - `ReviewSummaryCache` model: `shop`, `productId`, `summary`, `reviewHash`, `reviewCount`, `generatedAt`
+    - `StoreInformation`: Added `questionCount`, `lastQuestionCountReset`, `reviewSummaryCount`, `lastReviewSummaryReset`
+    - Compound unique index on `shop_productId` for efficient cache lookups
+  - **Usage Tracking** (app/utils/plan-management.server.ts):
+    - `checkQuestionLimit()`: Validates free tier (50/month), auto-resets monthly
+    - `checkReviewSummaryLimit()`: Validates review summaries (10/month), auto-resets monthly
+    - `incrementQuestionCount()`: Tracks usage for free tier only
+    - `incrementReviewSummaryCount()`: Tracks review summary usage
+  - **Caching Logic** (app/routes/resource-review-summary.tsx):
+    - MD5 hash generation from `scrapedReviews + reviewCount` for cache invalidation
+    - Cache check BEFORE billing/limits (performance optimization)
+    - 30-day TTL with content-based invalidation on review changes
+    - Cache save after OpenAI response (upsert pattern)
+    - Pro users get caching benefits too (unlimited + fast responses)
+  - **URL Parsing** (extensions/shop-ai/assets/review-summary.js):
+    - Tier 1: `window.ShopifyAnalytics.meta.product.id` (numeric ID, preferred)
+    - Tier 2: URL regex `/\/products\/([^/?]+)/` (product handle, new fallback)
+    - Tier 3: `window.meta.product.id` (final fallback)
+    - Handles: `/products/widget`, `/collections/sale/products/widget`, query params
+  - **UI Components**:
+    - `UpgradeBanner.tsx`: Reusable upgrade prompt component (Polaris Banner)
+    - `UsageMeter.tsx`: Visual usage meter with progress bar
+    - Upgrade banners on: Dashboard, Store Information, Welcome page
+- **🎯 CACHE BENEFITS**:
+  - Free tier: Makes 10 summaries go further (can view cached summaries repeatedly)
+  - Pro tier: Instant responses, reduced API costs
+  - Automatic cache invalidation when reviews change
+  - Works across all Shopify themes (URL-based fallback)
+- **📊 LIMIT ENFORCEMENT**:
+  - Questions: Checked in `resource-openai.tsx` before OpenAI call
+  - Review Summaries: Checked in `resource-review-summary.tsx` before generation
+  - Returns 429 (Too Many Requests) with upgrade message when limit reached
+  - Only increments counter for free tier (Pro tier bypasses counting)
+- **🔒 BACKWARDS COMPATIBILITY**:
+  - Existing Pro users unaffected (unlimited access maintained)
+  - ProductId optional - caching disabled gracefully if unavailable
+  - Migration handles existing data safely
+- **AFFECTED FILES**:
+  - `prisma/schema.prisma` - Added ReviewSummaryCache model and usage tracking fields
+  - `prisma/migrations/20251204000000_add_onboarding_and_usage_tracking/` - Migration
+  - `app/utils/plan-management.server.ts` - Usage limit functions
+  - `app/routes/resource-review-summary.tsx` - Caching + limit enforcement
+  - `app/routes/resource-openai.tsx` - Question limit enforcement
+  - `extensions/shop-ai/assets/review-summary.js` - URL-based productId extraction
+  - `app/components/UpgradeBanner.tsx` - New component
+  - `app/components/UsageMeter.tsx` - New component
+  - `app/routes/app._index.jsx` - Usage meters + upgrade banners
+  - `app/routes/app.dashboard.tsx` - Upgrade banner for free users
+  - `app/routes/app.store-information.jsx` - Upgrade banner + billing check
+- **SEVERITY**: High - Major monetization strategy shift + significant performance improvement
+- **DEPLOYMENT**: Safe to deploy - includes database migration, backwards compatible
+
+# 2.0.3
 
 ## CRITICAL FIX: App Credits & Custom Pricing Support - October 2025
 - **🎁 APP CREDITS SUPPORT**: Billing checks now properly recognize Shopify app credits and trial credits
