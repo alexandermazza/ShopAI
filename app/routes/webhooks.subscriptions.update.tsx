@@ -32,12 +32,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       await updateStorePlan({
         shop,
         plan: planName,
+        subscriptionStatus: "ACTIVE",
       });
     } else if (subscription.status === "CANCELLED" || subscription.status === "EXPIRED") {
-      console.log(`[Subscription Webhook] Subscription ${subscription.status} for ${shop}, reverting to free`);
+      console.log(`[Subscription Webhook] Subscription ${subscription.status} for ${shop}, reverting to Free Plan`);
 
-      // Revert to free plan - for now just log, you might want to update the plan
-      // await updateStorePlan({ shop, plan: "Free Plan" });
+      await updateStorePlan({
+        shop,
+        plan: "Free Plan",
+        subscriptionStatus: subscription.status,
+      });
+    } else if (subscription.status === "FROZEN" || subscription.status === "PENDING") {
+      // Handle other statuses - keep current plan but update status
+      console.log(`[Subscription Webhook] Subscription status ${subscription.status} for ${shop}`);
+
+      await updateStorePlan({
+        shop,
+        plan: subscription.name,
+        subscriptionStatus: subscription.status,
+      });
     }
 
     return json({ success: true });

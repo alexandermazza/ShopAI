@@ -80,14 +80,16 @@ export async function updateStorePlan({
   shop,
   plan,
   referralCode,
+  subscriptionStatus,
 }: {
   shop: string;
   plan: string;
   referralCode?: string;
+  subscriptionStatus?: string;
 }) {
   const planLimits = SHOPIFY_PLAN_CONFIGS[plan] || DEFAULT_PLAN_CONFIG;
 
-  console.log(`[Plan Management] Updating store ${shop} to plan: ${plan}`, planLimits);
+  console.log(`[Plan Management] Updating store ${shop} to plan: ${plan}, status: ${subscriptionStatus || 'not provided'}`, planLimits);
 
   // First, check if store info exists
   const existingStore = await prisma.storeInformation.findUnique({
@@ -104,6 +106,7 @@ export async function updateStorePlan({
         referralCode: referralCode || existingStore.referralCode,
         planLimits: planLimits,
         monthlyQuestions: existingStore.monthlyQuestions || 0, // Keep existing usage
+        subscriptionStatus: subscriptionStatus || existingStore.subscriptionStatus,
       }
     });
   } else {
@@ -116,6 +119,7 @@ export async function updateStorePlan({
         referralCode,
         planLimits: planLimits,
         monthlyQuestions: 0,
+        subscriptionStatus: subscriptionStatus || "ACTIVE",
       }
     });
   }

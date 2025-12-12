@@ -26,8 +26,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       await updateStorePlan({
         shop: session.shop,
         plan,
+        subscriptionStatus: "ACTIVE",
       });
-      console.log(`[Billing Callback] Updated store plan to: ${plan}`);
+      console.log(`[Billing Callback] Updated store plan to: ${plan} with ACTIVE status`);
     } catch (error) {
       console.error("[Billing Callback] Error updating store plan:", error);
     }
