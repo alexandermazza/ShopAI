@@ -1,6 +1,24 @@
 import { prisma } from "../db.server";
 import { PLAN_FEATURES } from "./billing.server";
 
+/**
+ * Shops that are exempt from all usage limits and have unlimited access.
+ * Synced with whitelist in billing-check.server.ts
+ */
+const WHITELISTED_SHOPS = [
+  'ba09dc.myshopify.com',      // Minky Snacks - Shopify domain
+  'minkysnacks.com',            // Minky Snacks - Custom domain
+];
+
+/**
+ * Check if a shop is whitelisted for unlimited free access
+ */
+function isShopWhitelisted(shop: string): boolean {
+  return WHITELISTED_SHOPS.some(whitelistedShop =>
+    shop.toLowerCase().includes(whitelistedShop.toLowerCase())
+  );
+}
+
 export interface PlanLimits {
   monthlyQuestions: number;
   monthlyReviewSummaries: number;
@@ -142,6 +160,12 @@ function isNewMonth(monthStart: Date | null): boolean {
  * Check question limits WITHOUT incrementing (call BEFORE logging question)
  */
 export async function checkQuestionLimit(shop: string) {
+  // Check whitelist first - these shops get unlimited access
+  if (isShopWhitelisted(shop)) {
+    console.log(`🤍 [Plan] Whitelisted shop (${shop}) - unlimited questions`);
+    return { allowed: true, remaining: -1, limit: -1 };
+  }
+
   const storeInfo = await prisma.storeInformation.findUnique({
     where: { shop }
   });
@@ -256,6 +280,12 @@ export async function incrementQuestionCount(shop: string) {
  * Check review summary limits WITHOUT incrementing (call BEFORE generating summary)
  */
 export async function checkReviewSummaryLimit(shop: string) {
+  // Check whitelist first - these shops get unlimited access
+  if (isShopWhitelisted(shop)) {
+    console.log(`🤍 [Plan] Whitelisted shop (${shop}) - unlimited review summaries`);
+    return { allowed: true, remaining: -1, limit: -1 };
+  }
+
   const storeInfo = await prisma.storeInformation.findUnique({
     where: { shop }
   });

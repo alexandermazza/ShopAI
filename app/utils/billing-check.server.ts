@@ -5,6 +5,26 @@ import { shopifyApi, LATEST_API_VERSION, Session } from "@shopify/shopify-api";
 import "@shopify/shopify-api/adapters/node";
 
 /**
+ * Shops that are exempt from all billing checks and have unlimited access.
+ * Add both .myshopify.com domains AND custom domains for complete coverage.
+ * These shops will ALWAYS return true from hasActiveSubscriptionViaAPI.
+ */
+const WHITELISTED_SHOPS = [
+  'ba09dc.myshopify.com',      // Minky Snacks - Shopify domain
+  'minkysnacks.com',            // Minky Snacks - Custom domain
+  // Add more whitelisted shops here as needed
+];
+
+/**
+ * Check if a shop is whitelisted for unlimited free access
+ */
+function isShopWhitelisted(shop: string): boolean {
+  return WHITELISTED_SHOPS.some(whitelistedShop =>
+    shop.toLowerCase().includes(whitelistedShop.toLowerCase())
+  );
+}
+
+/**
  * Middleware to check if a shop has an active paid subscription
  * Use this in loaders/actions that require a paid plan
  */
@@ -129,6 +149,12 @@ export async function requestSubscription(
  */
 export async function hasActiveSubscriptionViaAPI(shop: string): Promise<boolean> {
   try {
+    // Check whitelist first - these shops get unlimited free access
+    if (isShopWhitelisted(shop)) {
+      console.log(`🤍 [Billing] Whitelisted shop detected (${shop}) - bypassing all subscription checks`);
+      return true;
+    }
+
     // Allow dev/test stores to bypass subscription check
     if (shop.includes('myshopify.com') && (shop.includes('test') || shop.includes('dev'))) {
       console.log("🧪 [Billing] Dev/test store detected - bypassing subscription check");

@@ -1,4 +1,38 @@
-# 2.1.0 (Latest)
+# 2.1.1 (Latest)
+
+## SHOP WHITELIST FEATURE - December 2025
+- **🤍 SHOP WHITELIST**: Added ability to exempt specific shops from all billing checks and usage limits
+- **♾️ UNLIMITED ACCESS**: Whitelisted shops get unlimited questions, unlimited review summaries, and bypass all subscription checks
+- **🎯 FLEXIBLE MATCHING**: Supports both .myshopify.com domains and custom domains (e.g., minkysnacks.com)
+- **⚡ PERFORMANCE**: Whitelist check happens first, before any API calls or database queries
+- **🔧 TECHNICAL IMPLEMENTATION**:
+  - **Whitelist Configuration** (app/utils/billing-check.server.ts):
+    - `WHITELISTED_SHOPS` constant: Array of shop domains to exempt
+    - `isShopWhitelisted()`: Helper function for case-insensitive domain matching
+    - Added to `hasActiveSubscriptionViaAPI()` as first check (returns true immediately)
+  - **Usage Limit Bypass** (app/utils/plan-management.server.ts):
+    - `checkQuestionLimit()`: Returns unlimited (-1) for whitelisted shops
+    - `checkReviewSummaryLimit()`: Returns unlimited (-1) for whitelisted shops
+    - Synced whitelist constant across both files
+  - **Logging**: Console logs clearly identify when whitelist is used (🤍 emoji)
+- **🎯 USE CASES**:
+  - Partner/demo stores that need unrestricted access
+  - VIP customers with special pricing arrangements
+  - Development/testing with production-like stores
+  - Beta testers who need unlimited access
+- **📝 EXAMPLE CONFIGURATION**:
+  ```typescript
+  const WHITELISTED_SHOPS = [
+    'ba09dc.myshopify.com',      // Minky Snacks - Shopify domain
+    'minkysnacks.com',            // Minky Snacks - Custom domain
+  ];
+  ```
+- **✅ CURRENT WHITELISTED SHOPS**:
+  - Minky Snacks (ba09dc.myshopify.com / minkysnacks.com)
+
+---
+
+# 2.1.0
 
 ## FREEMIUM MODEL & URL-BASED CACHING - December 2025
 - **🆓 FREEMIUM MODEL LAUNCH**: Introduced free tier with generous usage limits for trial users
